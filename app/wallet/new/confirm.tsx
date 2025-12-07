@@ -1,0 +1,239 @@
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useWalletStore } from '@/store/walletStore';
+import { useState, useEffect } from 'react';
+import { WalletService } from '@/core/wallet/WalletService';
+import { SecureStorage } from '@/core/secure/SecureStorage';
+import { BIP39_WORDLIST } from '@/core/wallet/wordlist';
+
+export default function ConfirmPhraseScreen() {
+    const router = useRouter();
+    const { mnemonic, setWalletCreated, clearMnemonic } = useWalletStore();
+
+    // State
+    const [indices, setIndices] = useState<number[]>([]);
+    const [options, setOptions] = useState<string[][]>([]);
+    const [selectedWords, setSelectedWords] = useState<string[]>(['', '', '', '']);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!mnemonic) {
+            router.replace('/wallet/new/intro');
+            return;
+        }
+
+        // 1. Generate 4 unique random indices
+        const newIndices = new Set<number>();
+        while (newIndices.size < 4) {
+            newIndices.add(Math.floor(Math.random() * 24));
+        }
+        const sortedIndices = Array.from(newIndices).sort((a, b) => a - b);
+        setIndices(sortedIndices);
+
+        // 2. Generate options for each index
+        const newOptions = sortedIndices.map(index => {
+            const correctWord = mnemonic[index];
+            const distractors = new Set<string>();
+            while (distractors.size < 2) {
+                const randomWord = BIP39_WORDLIST[Math.floor(Math.random() * BIP39_WORDLIST.length)];
+                if (randomWord !== correctWord) {
+                    distractors.add(randomWord);
+                }
+            }
+            // Shuffle options
+            return [correctWord, ...Array.from(distractors)].sort(() => Math.random() - 0.5);
+        });
+        setOptions(newOptions);
+    }, [mnemonic]);
+
+    const handleSelect = (word: string, index: number) => {
+        const newSelected = [...selectedWords];
+        newSelected[index] = word;
+        setSelectedWords(newSelected);
+        setError(null);
+    };
+
+    const handleConfirm = async () => {
+        if (!mnemonic) return;
+
+        // Check if all words are selected
+        if (selectedWords.some(w => w === '')) {
+            setError('Please select a word for each number.');
+            return;
+        }
+
+        // Validate
+        for (let i = 0; i < 4; i++) {
+            if (selectedWords[i] !== mnemonic[indices[i]]) {
+                setError(`Word #${indices[i] + 1} is incorrect.`);
+                return;
+            }
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Derive and save
+            const wallet = WalletService.importMnemonic(mnemonic);
+            await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+
+            // Clear sensitive data from memory
+            clearMnemonic();
+            setWalletCreated(true);
+
+            // Navigate to App Lock setup
+            router.push('/auth/set-pin');
+        } catch (e) {
+            Alert.alert('Error', 'Failed to save wallet securely.');
+            setIsSubmitting(false);
+        }
+    };
+
+    if (indices.length === 0 || options.length === 0) return null;
+
+    return (
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            <Text style={styles.stepIndicator}>Step 3 of 3</Text>
+            <Text style={styles.title}>Confirm Your Recovery Phrase</Text>
+            <Text style={styles.description}>
+                Please tap the correct answer for the seed phrases below.
+            </Text>
+
+            <View style={styles.form}>
+                {indices.map((wordIndex, i) => (
+                    <View key={wordIndex} style={styles.questionContainer}>
+                        <Text style={styles.label}>Word #{wordIndex + 1}</Text>
+                        <View style={styles.optionsRow}>
+                            {options[i].map((word) => {
+                                const isSelected = selectedWords[i] === word;
+                                return (
+                                    <TouchableOpacity
+                                        key={word}
+                                        style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+                                        onPress={() => handleSelect(word, i)}
+                                    >
+                                        <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                                            {word}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+                ))}
+            </View>
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
+
+            <TouchableOpacity
+                style={[styles.button, isSubmitting && styles.buttonDisabled]}
+                onPress={handleConfirm}
+                disabled={isSubmitting}
+            >
+                <Text style={styles.buttonText}>{isSubmitting ? 'Verifying...' : 'Confirm'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <Text style={styles.backButtonText}>Back to View Phrase</Text>
+            </TouchableOpacity>
+        </ScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    content: {
+        padding: 24,
+        paddingBottom: 100,
+    },
+    stepIndicator: {
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    description: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        marginBottom: 32,
+        lineHeight: 24,
+    },
+    form: {
+        gap: 24,
+        marginBottom: 32,
+    },
+    questionContainer: {
+        gap: 12,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+    },
+    optionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    optionButton: {
+        flex: 1,
+        minWidth: '30%',
+        backgroundColor: '#f0f0f0',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    optionButtonSelected: {
+        backgroundColor: '#e6f2ff',
+        borderColor: '#007AFF',
+    },
+    optionText: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+    },
+    optionTextSelected: {
+        color: '#007AFF',
+        fontWeight: '600',
+    },
+    errorText: {
+        color: 'red',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    button: {
+        backgroundColor: '#007AFF',
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    buttonDisabled: {
+        backgroundColor: '#ccc',
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    backButton: {
+        alignItems: 'center',
+    },
+    backButtonText: {
+        color: '#007AFF',
+        fontSize: 16,
+    },
+});
