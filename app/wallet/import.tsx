@@ -7,7 +7,7 @@ import { useWalletStore } from '@/store/walletStore';
 
 export default function ImportWalletScreen() {
     const router = useRouter();
-    const { setWalletCreated } = useWalletStore();
+    const { setWalletCreated, setWalletAddress } = useWalletStore();
     const [mnemonicInput, setMnemonicInput] = useState('');
     const [isImporting, setIsImporting] = useState(false);
 
@@ -22,6 +22,10 @@ export default function ImportWalletScreen() {
         try {
             const wallet = WalletService.importMnemonic(words);
             await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+
+            // Save the wallet address to store
+            setWalletAddress(wallet.address);
+
             setWalletCreated(true);
             router.push('/auth/set-pin');
         } catch (e) {

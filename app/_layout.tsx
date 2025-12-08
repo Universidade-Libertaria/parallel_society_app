@@ -14,6 +14,7 @@ export default function RootLayout() {
                 <Stack.Screen name="wallet" />
                 <Stack.Screen name="auth" />
                 <Stack.Screen name="legal" />
+                <Stack.Screen name="home" />
             </Stack>
         </SafeAreaProvider>
     );

@@ -8,7 +8,7 @@ import { BIP39_WORDLIST } from '@/core/wallet/wordlist';
 
 export default function ConfirmPhraseScreen() {
     const router = useRouter();
-    const { mnemonic, setWalletCreated, clearMnemonic } = useWalletStore();
+    const { mnemonic, setWalletCreated, clearMnemonic, setWalletAddress } = useWalletStore();
 
     // State
     const [indices, setIndices] = useState<number[]>([]);
@@ -76,6 +76,9 @@ export default function ConfirmPhraseScreen() {
             // Derive and save
             const wallet = WalletService.importMnemonic(mnemonic);
             await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+
+            // Save the wallet address to store
+            setWalletAddress(wallet.address);
 
             // Clear sensitive data from memory
             clearMnemonic();
