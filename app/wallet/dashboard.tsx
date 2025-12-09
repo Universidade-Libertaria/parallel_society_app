@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Alert, Platform, ToastAndroid } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useWalletStore } from '@/store/walletStore';
@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { TOKENS } from '@/core/config/tokens';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { ethers } from 'ethers';
+import * as Clipboard from 'expo-clipboard';
 
 // Mock USD prices for display (replace with real price feed later)
 const MOCK_USD_PRICES = {
@@ -27,6 +28,7 @@ export default function WalletDashboardScreen() {
 
     const [refreshing, setRefreshing] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
+    const [copied, setCopied] = useState(false);
 
     // Load wallet address and balances on mount
     useEffect(() => {
@@ -90,6 +92,23 @@ export default function WalletDashboardScreen() {
         return `${address.slice(0, 6)}...${address.slice(-4)}`;
     };
 
+    const copyAddressToClipboard = async () => {
+        if (walletAddress) {
+            await Clipboard.setStringAsync(walletAddress);
+            setCopied(true);
+
+            // Show feedback
+            if (Platform.OS === 'android') {
+                ToastAndroid.show('Address copied to clipboard', ToastAndroid.SHORT);
+            } else {
+                Alert.alert('Copied', 'Address copied to clipboard');
+            }
+
+            // Reset icon after delay
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
     return (
         <ScrollView
             style={styles.container}
@@ -114,9 +133,17 @@ export default function WalletDashboardScreen() {
                 ) : (
                     <>
                         <Text style={styles.totalBalance}>{calculateTotalUSD()}</Text>
-                        <Text style={styles.addressText}>
-                            {walletAddress ? shortenAddress(walletAddress) : 'No wallet connected'}
-                        </Text>
+                        <TouchableOpacity style={styles.addressContainer} onPress={copyAddressToClipboard}>
+                            <Text style={styles.addressText}>
+                                {walletAddress ? shortenAddress(walletAddress) : 'No wallet connected'}
+                            </Text>
+                            <Ionicons
+                                name={copied ? "checkmark-circle" : "copy-outline"}
+                                size={16}
+                                color={copied ? "#34C759" : "rgba(255, 255, 255, 0.7)"}
+                                style={{ marginLeft: 6 }}
+                            />
+                        </TouchableOpacity>
                     </>
                 )}
             </View>
@@ -134,7 +161,10 @@ export default function WalletDashboardScreen() {
                 <Text style={styles.sectionTitle}>Assets</Text>
 
                 {/* RBTC Token */}
-                <View style={styles.tokenCard}>
+                <TouchableOpacity
+                    style={styles.tokenCard}
+                    onPress={() => router.push({ pathname: '/wallet/history', params: { filter: 'RBTC' } })}
+                >
                     <View style={styles.tokenIcon}>
                         <Text style={styles.tokenIconText}>₿</Text>
                     </View>
@@ -160,10 +190,13 @@ export default function WalletDashboardScreen() {
                             </>
                         )}
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* LUT Token */}
-                <View style={styles.tokenCard}>
+                <TouchableOpacity
+                    style={styles.tokenCard}
+                    onPress={() => router.push({ pathname: '/wallet/history', params: { filter: 'LUT' } })}
+                >
                     <View style={[styles.tokenIcon, styles.lutIcon]}>
                         <Text style={styles.tokenIconText}>◈</Text>
                     </View>
@@ -189,7 +222,7 @@ export default function WalletDashboardScreen() {
                             </>
                         )}
                     </View>
-                </View>
+                </TouchableOpacity>
             </View>
 
             {/* Action Buttons */}
@@ -209,8 +242,24 @@ export default function WalletDashboardScreen() {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                        // Receive - not implemented yet
-                        // router.push('/wallet/receive');
+                        Alert.alert(
+                            'Receive Assets',
+                            'Select token to receive',
+                            [
+                                {
+                                    text: 'RBTC (Rootstock Bitcoin)',
+                                    onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } })
+                                },
+                                {
+                                    text: 'LUT (Governance Token)',
+                                    onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } })
+                                },
+                                {
+                                    text: 'Cancel',
+                                    style: 'cancel'
+                                }
+                            ]
+                        );
                     }}
                 >
                     <View style={styles.actionIcon}>
@@ -237,7 +286,7 @@ export default function WalletDashboardScreen() {
             <Text style={styles.infoText}>
                 Pull down to refresh balances
             </Text>
-        </ScrollView>
+        </ScrollView >
     );
 }
 
@@ -284,6 +333,14 @@ const styles = StyleSheet.create({
     addressText: {
         color: 'rgba(255, 255, 255, 0.7)',
         fontSize: 14,
+    },
+    addressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     errorBanner: {
         flexDirection: 'row',

@@ -1,16 +1,23 @@
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, SectionList, ScrollView } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useWalletStore } from '@/store/walletStore';
 import { WalletTx, TxDirection, TxStatus } from '@/core/types/Transaction';
 
-type FilterType = 'All' | 'Received' | 'Sent' | 'Contract';
+type FilterType = 'All' | 'Received' | 'Sent' | 'Contract' | 'RBTC' | 'LUT';
 
 export default function TransactionHistoryScreen() {
     const router = useRouter();
+    const { filter } = useLocalSearchParams();
     const { txHistory, loadTxHistory, loadingTxHistory, walletAddress } = useWalletStore();
-    const [activeFilter, setActiveFilter] = useState<FilterType>('All');
+
+    // Initialize filter from params if available and valid, otherwise default to 'All'
+    const initialFilter = (filter && ['All', 'Received', 'Sent', 'Contract', 'RBTC', 'LUT'].includes(filter as string))
+        ? (filter as FilterType)
+        : 'All';
+
+    const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
     const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
@@ -29,6 +36,8 @@ export default function TransactionHistoryScreen() {
         if (activeFilter === 'Received') return tx.direction === 'in';
         if (activeFilter === 'Sent') return tx.direction === 'out';
         if (activeFilter === 'Contract') return tx.direction === 'contract';
+        if (activeFilter === 'RBTC') return tx.token === 'RBTC';
+        if (activeFilter === 'LUT') return tx.token === 'LUT';
         return true;
     });
 
@@ -128,7 +137,7 @@ export default function TransactionHistoryScreen() {
             {/* Filter Bar */}
             <View style={styles.filterContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {(['All', 'Received', 'Sent', 'Contract'] as FilterType[]).map((filter) => (
+                    {(['All', 'Received', 'Sent', 'RBTC', 'LUT'] as FilterType[]).map((filter) => (
                         <TouchableOpacity
                             key={filter}
                             style={[styles.filterChip, activeFilter === filter && styles.activeFilterChip]}
@@ -156,6 +165,45 @@ export default function TransactionHistoryScreen() {
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Text style={styles.emptyText}>No transactions found</Text>
+                    </View>
+                }
+                ListFooterComponent={
+                    <View style={styles.footerContainer}>
+                        <TouchableOpacity
+                            style={styles.footerButton}
+                            onPress={() => {
+                                // Reusing the Alert logic from dashboard or just direct nav if simple
+                                // Let's use direct navigation for now or simple choice if needed.
+                                // The user's request implies quick access.
+                                // Replicating the Dashboard Receive logic is best for consistency.
+                                // For simplicity/speed in this "history" context, maybe just navigate to Receive?
+                                // Let's replicate the Alert logic implicitly or navigate to dashboard?
+                                // Better: Re-implement the Alert here.
+                                const { Alert } = require('react-native'); // Inline require to avoid top-level conflict if any
+                                Alert.alert(
+                                    'Receive Assets',
+                                    'Select token to receive',
+                                    [
+                                        { text: 'RBTC', onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } }) },
+                                        { text: 'LUT', onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } }) },
+                                        { text: 'Cancel', style: 'cancel' }
+                                    ]
+                                );
+                            }}
+                        >
+                            <Ionicons name="arrow-down" size={20} color="#fff" />
+                            <Text style={styles.footerButtonText}>Receive</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.footerButton, styles.sendButton]}
+                            onPress={() => {
+                                // Send placeholder
+                            }}
+                        >
+                            <Ionicons name="arrow-up" size={20} color="#fff" />
+                            <Text style={styles.footerButtonText}>Send</Text>
+                        </TouchableOpacity>
                     </View>
                 }
             />
@@ -273,5 +321,36 @@ const styles = StyleSheet.create({
     emptyText: {
         color: '#999',
         fontSize: 16,
+    },
+    footerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        paddingVertical: 24,
+        gap: 16,
+    },
+    footerButton: {
+        flexDirection: 'row',
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    sendButton: {
+        backgroundColor: '#34C759', // Green for send? Or same blue? Often Send is blue/primary or distinct.
+        // Let's keep same blue for consistency or maybe secondary.
+        // Actually, let's make Send Blue and Receive Green? Or standard Blue/Blue.
+        backgroundColor: '#007AFF',
+    },
+    footerButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 8,
     }
 });

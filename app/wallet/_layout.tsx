@@ -9,6 +9,7 @@ export default function WalletLayout() {
             <Stack.Screen name="new/display" options={{ title: 'Your Recovery Phrase' }} />
             <Stack.Screen name="new/confirm" options={{ title: 'Confirm Phrase' }} />
             <Stack.Screen name="import" options={{ title: 'Import Wallet' }} />
+            <Stack.Screen name="receive" options={{ presentation: 'modal' }} />
         </Stack>
     );
 }
