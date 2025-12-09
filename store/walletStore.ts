@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { TokenBalance, WalletBalances } from '@/core/types/TokenBalance';
 import { balanceService } from '@/core/services/BalanceService';
+import { transactionService } from '@/core/services/TransactionService';
+import { WalletTx } from '@/core/types/Transaction';
 
 interface WalletState {
     // Mnemonic state (existing)
@@ -15,6 +17,10 @@ interface WalletState {
     loadingBalances: boolean;
     balanceError: string | null;
 
+    // Transaction History
+    txHistory: WalletTx[];
+    loadingTxHistory: boolean;
+
     // Mnemonic actions (existing)
     setMnemonic: (mnemonic: string[]) => void;
     clearMnemonic: () => void;
@@ -26,6 +32,9 @@ interface WalletState {
     // Balance actions
     loadBalances: (address?: string) => Promise<void>;
     refreshBalances: () => Promise<void>;
+
+    // History Actions
+    loadTxHistory: (address?: string) => Promise<void>;
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
@@ -39,6 +48,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     },
     loadingBalances: false,
     balanceError: null,
+    txHistory: [],
+    loadingTxHistory: false,
 
     // Mnemonic actions
     setMnemonic: (mnemonic) => set({ mnemonic }),
@@ -78,6 +89,21 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const address = get().walletAddress;
         if (address) {
             await get().loadBalances(address);
+        }
+    },
+
+    loadTxHistory: async (address?: string) => {
+        const targetAddress = address || get().walletAddress;
+        if (!targetAddress) return;
+
+        set({ loadingTxHistory: true });
+        try {
+            const history = await transactionService.getTransactions(targetAddress);
+            set({ txHistory: history });
+        } catch (error) {
+            console.error('Failed to load transaction history:', error);
+        } finally {
+            set({ loadingTxHistory: false });
         }
     }
 }));

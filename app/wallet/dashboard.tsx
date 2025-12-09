@@ -197,8 +197,7 @@ export default function WalletDashboardScreen() {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                        // Transaction history - not implemented yet
-                        // router.push('/wallet/history');
+                        router.push('/wallet/history');
                     }}
                 >
                     <View style={styles.actionIcon}>
