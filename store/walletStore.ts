@@ -17,8 +17,10 @@ interface WalletState {
     loadingBalances: boolean;
     balanceError: string | null;
 
+
     // Transaction History
     txHistory: WalletTx[];
+    pendingTxs: WalletTx[];
     loadingTxHistory: boolean;
 
     // Mnemonic actions (existing)
@@ -35,6 +37,7 @@ interface WalletState {
 
     // History Actions
     loadTxHistory: (address?: string) => Promise<void>;
+    addPendingTx: (tx: WalletTx) => void;
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
@@ -49,6 +52,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     loadingBalances: false,
     balanceError: null,
     txHistory: [],
+    pendingTxs: [],
     loadingTxHistory: false,
 
     // Mnemonic actions
@@ -99,11 +103,27 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         set({ loadingTxHistory: true });
         try {
             const history = await transactionService.getTransactions(targetAddress);
-            set({ txHistory: history });
+
+            // Merge pending transactions that are not yet in history
+            const pending = get().pendingTxs.filter(pTx =>
+                !history.some(hTx => hTx.hash.toLowerCase() === pTx.hash.toLowerCase())
+            );
+
+            // Sort all by timestamp descending
+            const allTxs = [...pending, ...history].sort((a, b) => b.timestamp - a.timestamp);
+
+            set({ txHistory: allTxs });
         } catch (error) {
             console.error('Failed to load transaction history:', error);
         } finally {
             set({ loadingTxHistory: false });
         }
+    },
+
+    addPendingTx: (tx: WalletTx) => {
+        set(state => ({
+            pendingTxs: [tx, ...state.pendingTxs],
+            txHistory: [tx, ...state.txHistory]
+        }));
     }
 }));

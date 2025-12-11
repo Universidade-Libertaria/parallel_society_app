@@ -271,8 +271,8 @@ export default function WalletDashboardScreen() {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                        // Send - not implemented yet
-                        // router.push('/wallet/send');
+                        // Send
+                        router.push('/wallet/send');
                     }}
                 >
                     <View style={styles.actionIcon}>

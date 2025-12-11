@@ -72,7 +72,7 @@ export class BlockscoutService {
         });
 
         return transactions
-            .filter(tx => tx.tokenSymbol === 'LUT')
+            // .filter(tx => tx.tokenSymbol === 'LUT') // Removed strict check as we query by contract address
             .map(tx => this.mapToWalletTx(tx, address, 'LUT', 18)); // LUT usually 18 decimals
     }
 
