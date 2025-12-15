@@ -6,7 +6,7 @@ import { blockscoutService } from './BlockscoutService';
  */
 export class TransactionService {
     /**
-     * getTransactions fetches real history from Blockscout
+     * getTransactions fetches history from Blockscout
      * @param address User's wallet address
      * @returns Array of WalletTx
      */

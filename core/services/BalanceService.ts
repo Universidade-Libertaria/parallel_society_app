@@ -28,9 +28,8 @@ export class BalanceService {
     private provider: ethers.JsonRpcProvider;
 
     constructor(rpcUrl?: string) {
-        // Prefer env var, then passed arg, then config default (Mainnet is safer availability-wise, but we'll stick to config)
-        // Actually, for this specific fix, we default to the env var or Mainnet since the token is on Mainnet.
-        const defaultUrl = process.env.EXPO_PUBLIC_RSK_RPC_URL || ROOTSTOCK.MAINNET_RPC_URL;
+        // Use the authenticated RPC URL from config as default
+        const defaultUrl = ROOTSTOCK.RPC_URL;
         this.provider = new ethers.JsonRpcProvider(rpcUrl || defaultUrl);
     }
 

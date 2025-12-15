@@ -37,7 +37,7 @@ export default function Index() {
 
     // If wallet exists, go to dashboard; otherwise start wallet setup
     if (hasWallet) {
-        return <Redirect href="/wallet/dashboard" />;
+        return <Redirect href="/(tabs)/wallet" />;
     }
 
     return <Redirect href="/wallet/setup" />;

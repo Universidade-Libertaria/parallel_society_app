@@ -35,7 +35,7 @@ class SendService {
     private provider: ethers.JsonRpcProvider;
 
     constructor(rpcUrl?: string) {
-        const defaultUrl = process.env.EXPO_PUBLIC_RSK_RPC_URL || ROOTSTOCK.MAINNET_RPC_URL;
+        const defaultUrl = ROOTSTOCK.RPC_URL;
         this.provider = new ethers.JsonRpcProvider(rpcUrl || defaultUrl);
     }
 

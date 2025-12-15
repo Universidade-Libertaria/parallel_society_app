@@ -5,6 +5,5 @@ import { Redirect } from 'expo-router';
  * The wallet dashboard is the main screen after wallet creation.
  */
 export default function HomeScreen() {
-    return <Redirect href="/wallet/dashboard" />;
+    return <Redirect href="/wallet" />;
 }
-
