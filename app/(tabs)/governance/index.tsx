@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProposals } from '@/core/hooks/useProposals';
@@ -7,7 +7,6 @@ import { useLutBalance } from '@/core/hooks/useLutBalance';
 import { Proposal } from '@/core/types/Proposal';
 import Markdown from 'react-native-markdown-display';
 import { firebaseAuth } from '@/core/config/firebase';
-import { ProposalService } from '@/core/services/api/ProposalService';
 
 export default function GovernanceScreen() {
     const router = useRouter();
@@ -47,62 +46,82 @@ export default function GovernanceScreen() {
         );
     };
 
-    const getStatus = (endDate: number) => {
-        return Date.now() < endDate ? 'Open' : 'Closed';
-    };
-
     const renderProposal = ({ item }: { item: Proposal }) => {
-        const isOpen = item.status === 'ACTIVE';
-        const statusLabel = isOpen ? 'Open' : 'Closed';
         const isOwner = currentUser && item.authorAddress?.toLowerCase() === currentUser.uid?.toLowerCase();
 
+        const getStatusColor = (status: string) => {
+            switch (status) {
+                case 'ACTIVE': return styles.statusActive;
+                case 'PASSED': return styles.statusPassed;
+                case 'FAILED': return styles.statusFailed;
+                case 'UPCOMING': return styles.statusUpcoming;
+                default: return styles.statusClosed;
+            }
+        };
+
+        const getStatusTextColor = (status: string) => {
+            switch (status) {
+                case 'ACTIVE': return styles.statusTextActive;
+                case 'PASSED': return styles.statusTextPassed;
+                case 'FAILED': return styles.statusTextFailed;
+                case 'UPCOMING': return styles.statusTextUpcoming;
+                default: return styles.statusTextClosed;
+            }
+        };
+
         return (
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.headerLeft}>
-                        <View style={[styles.statusBadge, isOpen ? styles.statusOpen : styles.statusClosed]}>
-                            <Text style={[styles.statusText, isOpen ? styles.statusTextOpen : styles.statusTextClosed]}>
-                                {statusLabel}
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push(`/governance/${item.id}`)}
+                style={styles.cardContainer}
+            >
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.headerLeft}>
+                            <View style={[styles.statusBadge, getStatusColor(item.status)]}>
+                                <Text style={[styles.statusText, getStatusTextColor(item.status)]}>
+                                    {item.status}
+                                </Text>
+                            </View>
+                            <View style={styles.categoryBadge}>
+                                <Text style={styles.categoryText}>{item.category}</Text>
+                            </View>
+                        </View>
+                        <View style={styles.headerRight}>
+                            {isOwner && (
+                                <TouchableOpacity
+                                    onPress={() => handleDelete(item.id, item.title)}
+                                    style={styles.deleteButton}
+                                >
+                                    <Ionicons name="trash-outline" size={18} color="#dc3545" />
+                                </TouchableOpacity>
+                            )}
+                            <Text style={styles.dateText}>
+                                {new Date(item.createdAt).toLocaleDateString()}
                             </Text>
                         </View>
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryText}>{item.category}</Text>
-                        </View>
                     </View>
-                    <View style={styles.headerRight}>
-                        {isOwner && (
-                            <TouchableOpacity
-                                onPress={() => handleDelete(item.id, item.title)}
-                                style={styles.deleteButton}
-                            >
-                                <Ionicons name="trash-outline" size={18} color="#dc3545" />
-                            </TouchableOpacity>
-                        )}
-                        <Text style={styles.dateText}>
-                            {new Date(item.createdAt).toLocaleDateString()}
+
+                    <Text style={styles.title}>{item.title}</Text>
+
+                    <View style={styles.descriptionContainer}>
+                        <Markdown style={markdownStyles}>
+                            {(item.description || '').length > 200
+                                ? (item.description || '').substring(0, 200) + '...'
+                                : (item.description || '')}
+                        </Markdown>
+                    </View>
+
+                    <View style={styles.footer}>
+                        <Text style={styles.authorText}>
+                            by {item.authorAddress ? `${item.authorAddress.slice(0, 6)}...${item.authorAddress.slice(-4)}` : 'Unknown'}
+                        </Text>
+                        <Text style={styles.endDateText}>
+                            {['CLOSED', 'PASSED', 'FAILED'].includes(item.status) ? 'Ended' : 'Ends'} {new Date(item.endTime).toLocaleDateString()}
                         </Text>
                     </View>
                 </View>
-
-                <Text style={styles.title}>{item.title}</Text>
-
-                <View style={styles.descriptionContainer}>
-                    <Markdown style={markdownStyles}>
-                        {(item.description || '').length > 200
-                            ? (item.description || '').substring(0, 200) + '...'
-                            : (item.description || '')}
-                    </Markdown>
-                </View>
-
-                <View style={styles.footer}>
-                    <Text style={styles.authorText}>
-                        by {item.authorAddress ? `${item.authorAddress.slice(0, 6)}...${item.authorAddress.slice(-4)}` : 'Unknown'}
-                    </Text>
-                    <Text style={styles.endDateText}>
-                        Ends {new Date(item.endTime).toLocaleDateString()}
-                    </Text>
-                </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
@@ -217,11 +236,13 @@ const styles = StyleSheet.create({
         padding: 16,
         paddingBottom: 100, // Space for FAB
     },
+    cardContainer: {
+        marginBottom: 12,
+    },
     card: {
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 16,
-        marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -252,8 +273,17 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 4,
     },
-    statusOpen: {
+    statusActive: {
         backgroundColor: '#e6f4ea',
+    },
+    statusPassed: {
+        backgroundColor: '#d1e7dd',
+    },
+    statusFailed: {
+        backgroundColor: '#f8d7da',
+    },
+    statusUpcoming: {
+        backgroundColor: '#e2e3e5',
     },
     statusClosed: {
         backgroundColor: '#f0f0f0',
@@ -263,8 +293,17 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textTransform: 'uppercase',
     },
-    statusTextOpen: {
+    statusTextActive: {
         color: '#1e7e34',
+    },
+    statusTextPassed: {
+        color: '#0f5132',
+    },
+    statusTextFailed: {
+        color: '#842029',
+    },
+    statusTextUpcoming: {
+        color: '#41464b',
     },
     statusTextClosed: {
         color: '#666',
@@ -290,10 +329,26 @@ const styles = StyleSheet.create({
         color: '#1a1a1a',
         marginBottom: 8,
     },
-    description: {
-        fontSize: 14,
+    descriptionContainer: {
+        maxHeight: 150,
+        overflow: 'hidden',
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    authorText: {
+        fontSize: 12,
+        color: '#999',
+    },
+    endDateText: {
+        fontSize: 12,
         color: '#666',
-        lineHeight: 20,
+        fontWeight: '500',
     },
     emptyState: {
         alignItems: 'center',
@@ -314,7 +369,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
     },
-
     fab: {
         position: 'absolute',
         bottom: 24,
@@ -342,27 +396,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginLeft: 8,
-    },
-    descriptionContainer: {
-        maxHeight: 150,
-        overflow: 'hidden',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 12,
-        paddingTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#f0f0f0',
-    },
-    authorText: {
-        fontSize: 12,
-        color: '#999',
-    },
-    endDateText: {
-        fontSize: 12,
-        color: '#666',
-        fontWeight: '500',
     },
 });
 

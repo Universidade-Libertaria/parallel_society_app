@@ -1,0 +1,194 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { ProposalService } from '@/core/services/api/ProposalService';
+import { PROPOSAL_CATEGORIES, ProposalCategory } from '@/core/types/Proposal';
+
+export default function CreateProposalScreen() {
+    const router = useRouter();
+    const [title, setTitle] = useState('');
+    const [category, setCategory] = useState<ProposalCategory>('Treasury');
+    const [description, setDescription] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handlePublish = async () => {
+        if (!title.trim() || !description.trim()) {
+            Alert.alert('Error', 'Title and Description are required.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await ProposalService.createProposal(title, category, description);
+            Alert.alert('Success', 'Proposal created successfully!', [
+                { text: 'OK', onPress: () => router.back() }
+            ]);
+        } catch (error: any) {
+            console.error('Failed to create proposal:', error);
+            Alert.alert('Creation Failed', error.message || 'An error occurred while creating the proposal.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#007AFF" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>New Proposal</Text>
+                <View style={{ width: 24 }} />
+            </View>
+
+            <View style={styles.form}>
+                <Text style={styles.label}>Title</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Brief summary of the proposal"
+                    value={title}
+                    onChangeText={setTitle}
+                    maxLength={100}
+                />
+
+                <Text style={styles.label}>Category</Text>
+                <View style={styles.categoryContainer}>
+                    {PROPOSAL_CATEGORIES.map((cat) => (
+                        <TouchableOpacity
+                            key={cat}
+                            style={[
+                                styles.categoryOption,
+                                category === cat && styles.categoryOptionSelected
+                            ]}
+                            onPress={() => setCategory(cat)}
+                        >
+                            <Text style={[
+                                styles.categoryText,
+                                category === cat && styles.categoryTextSelected
+                            ]}>
+                                {cat}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.label}>Description (Markdown supported)</Text>
+                <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Explain why this proposal is important..."
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    numberOfLines={10}
+                    textAlignVertical="top"
+                />
+            </View>
+
+            <TouchableOpacity
+                style={[styles.publishButton, isSubmitting && styles.publishButtonDisabled]}
+                onPress={handlePublish}
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? (
+                    <ActivityIndicator color="#fff" />
+                ) : (
+                    <Text style={styles.publishButtonText}>Publish Proposal</Text>
+                )}
+            </TouchableOpacity>
+        </ScrollView>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    content: {
+        padding: 24,
+        paddingBottom: 48,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 32,
+        marginTop: 16,
+    },
+    backButton: {
+        padding: 4,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#1a1a1a',
+    },
+    form: {
+        gap: 20,
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1a1a1a',
+        marginBottom: 8,
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#eee',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 16,
+        backgroundColor: '#f9f9f9',
+    },
+    textArea: {
+        minHeight: 200,
+    },
+    categoryContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 8,
+    },
+    categoryOption: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        borderWidth: 1,
+        borderColor: '#eee',
+    },
+    categoryOptionSelected: {
+        backgroundColor: '#e6f2ff',
+        borderColor: '#007AFF',
+    },
+    categoryText: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '500',
+    },
+    categoryTextSelected: {
+        color: '#007AFF',
+        fontWeight: '600',
+    },
+    publishButton: {
+        backgroundColor: '#007AFF',
+        padding: 18,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 40,
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    publishButtonDisabled: {
+        backgroundColor: '#ccc',
+    },
+    publishButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+});
