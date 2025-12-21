@@ -2,8 +2,20 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-get-random-values'; // Polyfill for ethers
+import { useEffect } from 'react';
+import { AuthService } from '@/core/services/AuthService';
+import { useAuthStore } from '@/store/authStore';
 
 export default function RootLayout() {
+    const setUser = useAuthStore((state) => state.setUser);
+
+    useEffect(() => {
+        const unsubscribe = AuthService.subscribeToAuthChanges((user) => {
+            setUser(user);
+        });
+        return () => unsubscribe();
+    }, [setUser]);
+
     return (
         <SafeAreaProvider>
             <StatusBar style="dark" />

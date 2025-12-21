@@ -22,6 +22,7 @@ export default function ImportWalletScreen() {
         try {
             const wallet = WalletService.importMnemonic(words);
             await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+            await SecureStorage.saveEncryptedKey('mnemonic', mnemonicInput.trim());
 
             // Save the wallet address to store
             setWalletAddress(wallet.address);

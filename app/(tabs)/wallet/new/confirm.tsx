@@ -76,6 +76,7 @@ export default function ConfirmPhraseScreen() {
             // Derive and save
             const wallet = WalletService.importMnemonic(mnemonic);
             await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+            await SecureStorage.saveEncryptedKey('mnemonic', mnemonic.join(' '));
 
             // Save the wallet address to store
             setWalletAddress(wallet.address);

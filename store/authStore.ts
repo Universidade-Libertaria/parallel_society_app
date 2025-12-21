@@ -1,15 +1,50 @@
 import { create } from 'zustand';
+import { User } from 'firebase/auth';
+import { AuthService } from '@/core/services/AuthService';
 
 interface AuthState {
+    user: User | null;
     isAuthenticated: boolean;
     hasBiometricsEnabled: boolean;
+    loading: boolean;
+    error: string | null;
+
+    setUser: (user: User | null) => void;
     setIsAuthenticated: (auth: boolean) => void;
     setBiometricsEnabled: (enabled: boolean) => void;
+    login: (mnemonic: string) => Promise<void>;
+    logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
+    user: null,
     isAuthenticated: false,
     hasBiometricsEnabled: false,
+    loading: false,
+    error: null,
+
+    setUser: (user) => set({ user, isAuthenticated: !!user }),
     setIsAuthenticated: (auth) => set({ isAuthenticated: auth }),
     setBiometricsEnabled: (enabled) => set({ hasBiometricsEnabled: enabled }),
+
+    login: async (mnemonic: string) => {
+        set({ loading: true, error: null });
+        try {
+            const user = await AuthService.signInWithWallet(mnemonic);
+            set({ user, isAuthenticated: true, loading: false });
+        } catch (error: any) {
+            set({ error: error.message, loading: false });
+            throw error;
+        }
+    },
+
+    logout: async () => {
+        set({ loading: true });
+        try {
+            await AuthService.logout();
+            set({ user: null, isAuthenticated: false, loading: false });
+        } catch (error: any) {
+            set({ error: error.message, loading: false });
+        }
+    }
 }));
