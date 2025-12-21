@@ -68,5 +68,35 @@ export const ProposalService = {
         }
 
         return response.json();
+    },
+
+    async deleteProposal(id: string): Promise<void> {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('You must be logged in to delete a proposal');
+        }
+
+        const idToken = await user.getIdToken();
+
+        const response = await fetch(`${BACKEND_URL}/deleteProposal`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ id })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = 'Failed to delete proposal';
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = errorText || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
     }
 };

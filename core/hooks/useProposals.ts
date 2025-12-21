@@ -8,6 +8,7 @@ export interface UseProposalsHook {
     error: string | null;
     load: () => Promise<void>;
     add: (title: string, category: string, description: string, endTime: number, authorAddress: string) => Promise<boolean>;
+    remove: (id: string) => Promise<void>;
 }
 
 export function useProposals(): UseProposalsHook {
@@ -39,6 +40,21 @@ export function useProposals(): UseProposalsHook {
         }
     }, [load]);
 
+    const remove = useCallback(async (id: string) => {
+        try {
+            // Optimistic update: remove from list immediately
+            setProposals(prev => prev.filter(p => p.id !== id));
+
+            // Perform actual delete
+            await ProposalService.deleteProposal(id);
+        } catch (err) {
+            console.error('Error removing proposal:', err);
+            // Revert if failed
+            await load();
+            throw err;
+        }
+    }, [load]);
+
     // Initial load
     useEffect(() => {
         load();
@@ -49,6 +65,7 @@ export function useProposals(): UseProposalsHook {
         loading,
         error,
         load,
-        add
+        add,
+        remove
     };
 }

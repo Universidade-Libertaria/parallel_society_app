@@ -1,16 +1,19 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useProposals } from '@/core/hooks/useProposals';
 import { useLutBalance } from '@/core/hooks/useLutBalance';
 import { Proposal } from '@/core/types/Proposal';
 import Markdown from 'react-native-markdown-display';
+import { firebaseAuth } from '@/core/config/firebase';
+import { ProposalService } from '@/core/services/api/ProposalService';
 
 export default function GovernanceScreen() {
     const router = useRouter();
-    const { proposals, loading, load } = useProposals();
+    const { proposals, loading, load, remove } = useProposals();
     const { formatted: lutBalance, canCreateProposal, refresh: refreshBalance } = useLutBalance();
+    const currentUser = firebaseAuth.currentUser;
 
     useFocusEffect(
         useCallback(() => {
@@ -23,6 +26,27 @@ export default function GovernanceScreen() {
         await Promise.all([load(), refreshBalance()]);
     };
 
+    const handleDelete = (proposalId: string, title: string) => {
+        Alert.alert(
+            "Delete Proposal",
+            `Are you sure you want to delete "${title}"? This action cannot be undone.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await remove(proposalId);
+                        } catch (error: any) {
+                            Alert.alert("Error", error.message || "Failed to delete proposal");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const getStatus = (endDate: number) => {
         return Date.now() < endDate ? 'Open' : 'Closed';
     };
@@ -30,6 +54,7 @@ export default function GovernanceScreen() {
     const renderProposal = ({ item }: { item: Proposal }) => {
         const isOpen = item.status === 'ACTIVE';
         const statusLabel = isOpen ? 'Open' : 'Closed';
+        const isOwner = currentUser && item.authorAddress?.toLowerCase() === currentUser.uid?.toLowerCase();
 
         return (
             <View style={styles.card}>
@@ -44,9 +69,19 @@ export default function GovernanceScreen() {
                             <Text style={styles.categoryText}>{item.category}</Text>
                         </View>
                     </View>
-                    <Text style={styles.dateText}>
-                        {new Date(item.createdAt).toLocaleDateString()}
-                    </Text>
+                    <View style={styles.headerRight}>
+                        {isOwner && (
+                            <TouchableOpacity
+                                onPress={() => handleDelete(item.id, item.title)}
+                                style={styles.deleteButton}
+                            >
+                                <Ionicons name="trash-outline" size={18} color="#dc3545" />
+                            </TouchableOpacity>
+                        )}
+                        <Text style={styles.dateText}>
+                            {new Date(item.createdAt).toLocaleDateString()}
+                        </Text>
+                    </View>
                 </View>
 
                 <Text style={styles.title}>{item.title}</Text>
@@ -203,6 +238,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    deleteButton: {
+        padding: 4,
     },
     statusBadge: {
         paddingHorizontal: 8,
