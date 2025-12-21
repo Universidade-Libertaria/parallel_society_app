@@ -28,8 +28,8 @@ export default function GovernanceScreen() {
     };
 
     const renderProposal = ({ item }: { item: Proposal }) => {
-        const status = getStatus(item.endDate);
-        const isOpen = status === 'Open';
+        const isOpen = item.status === 'ACTIVE';
+        const statusLabel = isOpen ? 'Open' : 'Closed';
 
         return (
             <View style={styles.card}>
@@ -37,7 +37,7 @@ export default function GovernanceScreen() {
                     <View style={styles.headerLeft}>
                         <View style={[styles.statusBadge, isOpen ? styles.statusOpen : styles.statusClosed]}>
                             <Text style={[styles.statusText, isOpen ? styles.statusTextOpen : styles.statusTextClosed]}>
-                                {status}
+                                {statusLabel}
                             </Text>
                         </View>
                         <View style={styles.categoryBadge}>
@@ -53,18 +53,18 @@ export default function GovernanceScreen() {
 
                 <View style={styles.descriptionContainer}>
                     <Markdown style={markdownStyles}>
-                        {item.description.length > 200
-                            ? item.description.substring(0, 200) + '...'
-                            : item.description}
+                        {(item.description || '').length > 200
+                            ? (item.description || '').substring(0, 200) + '...'
+                            : (item.description || '')}
                     </Markdown>
                 </View>
 
                 <View style={styles.footer}>
                     <Text style={styles.authorText}>
-                        by {item.author ? `${item.author.slice(0, 6)}...${item.author.slice(-4)}` : 'Unknown'}
+                        by {item.authorAddress ? `${item.authorAddress.slice(0, 6)}...${item.authorAddress.slice(-4)}` : 'Unknown'}
                     </Text>
                     <Text style={styles.endDateText}>
-                        Ends {new Date(item.endDate).toLocaleDateString()}
+                        Ends {new Date(item.endTime).toLocaleDateString()}
                     </Text>
                 </View>
             </View>
@@ -80,7 +80,7 @@ export default function GovernanceScreen() {
                     <Text style={styles.balanceValue}>{lutBalance} LUT</Text>
                     {canCreateProposal ? (
                         <View style={styles.statusTagSuccess}>
-                            <Text style={styles.statusText}>Eligible</Text>
+                            <Text style={styles.balanceStatusText}>Eligible</Text>
                         </View>
                     ) : (
                         <View style={styles.statusTagValues}>
@@ -117,7 +117,7 @@ export default function GovernanceScreen() {
                     styles.fab,
                     !canCreateProposal && styles.fabDisabled
                 ]}
-                onPress={() => router.push('/(tabs)/governance/create')}
+                onPress={() => router.push('/governance/create')}
                 disabled={!canCreateProposal}
             >
                 <Ionicons name="add" size={24} color="#fff" />
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 4,
     },
-    statusText: {
+    balanceStatusText: {
         fontSize: 12,
         color: '#1e7e34',
         fontWeight: '600',

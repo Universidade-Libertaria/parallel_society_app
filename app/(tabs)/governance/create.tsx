@@ -61,8 +61,8 @@ export default function CreateProposalScreen() {
             } else {
                 Alert.alert('Error', 'Failed to publish proposal');
             }
-        } catch (e) {
-            Alert.alert('Error', 'An unexpected error occurred');
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'An unexpected error occurred');
         } finally {
             setSubmitting(false);
         }

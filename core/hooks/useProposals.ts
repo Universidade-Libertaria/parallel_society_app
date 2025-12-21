@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Proposal } from '../types/Proposal';
-import { governanceService } from '../services/GovernanceService';
+import { ProposalService } from '../services/api/ProposalService';
 
 export interface UseProposalsHook {
     proposals: Proposal[];
     loading: boolean;
     error: string | null;
     load: () => Promise<void>;
-    add: (title: string, category: string, description: string, endDate: number, author: string) => Promise<boolean>;
+    add: (title: string, category: string, description: string, endTime: number, authorAddress: string) => Promise<boolean>;
 }
 
 export function useProposals(): UseProposalsHook {
@@ -19,7 +19,7 @@ export function useProposals(): UseProposalsHook {
         setLoading(true);
         setError(null);
         try {
-            const data = await governanceService.loadProposals();
+            const data = await ProposalService.fetchProposals();
             setProposals(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load proposals');
@@ -28,22 +28,20 @@ export function useProposals(): UseProposalsHook {
         }
     }, []);
 
+    const add = useCallback(async (title: string, category: string, description: string, endTime: number, authorAddress: string) => {
+        try {
+            await ProposalService.createProposal(title, category, description, endTime);
+            await load(); // Refresh the list
+            return true;
+        } catch (err) {
+            console.error('Error adding proposal:', err);
+            throw err;
+        }
+    }, [load]);
+
     // Initial load
     useEffect(() => {
         load();
-    }, [load]);
-
-    const add = useCallback(async (title: string, category: string, description: string, endDate: number, author: string): Promise<boolean> => {
-        setLoading(true);
-        try {
-            await governanceService.addProposal(title, category, description, endDate, author);
-            await load(); // Reload list after adding
-            return true;
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create proposal');
-            setLoading(false);
-            return false;
-        }
     }, [load]);
 
     return {
