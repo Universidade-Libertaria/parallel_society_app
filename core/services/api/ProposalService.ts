@@ -28,7 +28,7 @@ export const ProposalService = {
         return response.json();
     },
 
-    async vote(proposalId: string, choice: 'FOR' | 'AGAINST'): Promise<any> {
+    async vote(proposalId: string, choice: 'FOR' | 'AGAINST', signature: string, timestamp: number): Promise<any> {
         const user = auth.currentUser;
         if (!user) {
             throw new Error('You must be logged in to vote');
@@ -44,7 +44,9 @@ export const ProposalService = {
             },
             body: JSON.stringify({
                 id: proposalId,
-                choice
+                choice,
+                signature,
+                timestamp
             })
         });
 

@@ -6,6 +6,10 @@ import { Proposal } from '@/core/types/Proposal';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import { ethers } from 'ethers';
+import { SecureStorage } from '@/core/secure/SecureStorage';
+import { signVote, VoteMessage } from '@/core/wallet/eip712';
+import { useWalletStore } from '@/store/walletStore';
+import { firebaseAuth } from '@/core/config/firebase';
 
 export default function ProposalDetailsScreen() {
     const { id } = useLocalSearchParams();
@@ -14,6 +18,7 @@ export default function ProposalDetailsScreen() {
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { walletAddress } = useWalletStore();
 
     const loadProposal = useCallback(async () => {
         if (!id || typeof id !== 'string') return;
@@ -34,7 +39,7 @@ export default function ProposalDetailsScreen() {
     }, [loadProposal]);
 
     const handleVote = async (choice: 'FOR' | 'AGAINST') => {
-        if (!proposal) return;
+        if (!proposal || !walletAddress) return;
 
         const powerRaw = proposal.userVotingPowerRaw || '0';
         const formattedPower = formatTokens(powerRaw);
@@ -49,7 +54,39 @@ export default function ProposalDetailsScreen() {
                     onPress: async () => {
                         setVoting(true);
                         try {
-                            await ProposalService.vote(proposal.id, choice);
+                            // Retrieve private key from secure storage
+                            const privateKey = await SecureStorage.getEncryptedKey('private_key');
+                            if (!privateKey) {
+                                throw new Error('Private key not found. Please re-import your wallet.');
+                            }
+
+                            // Get authenticated user's UID (should be the wallet address)
+                            const user = firebaseAuth.currentUser;
+                            const authenticatedUID = user?.uid;
+
+                            console.log('[Frontend] ========== VOTE DEBUG ==========');
+                            console.log('[Frontend] Authenticated UID:', authenticatedUID);
+                            console.log('[Frontend] Wallet Address from store:', walletAddress);
+                            console.log('[Frontend] Wallet Address (lowercase):', walletAddress?.toLowerCase());
+
+                            // Build vote message
+                            const timestamp = Math.floor(Date.now() / 1000);
+                            const voteMessage: VoteMessage = {
+                                proposalId: proposal.id,
+                                voter: walletAddress.toLowerCase(),
+                                choice,
+                                snapshotBlock: proposal.snapshotBlock || 0,
+                                timestamp
+                            };
+
+                            console.log('[Frontend] Vote message:', JSON.stringify(voteMessage, null, 2));
+
+                            // Sign the vote
+                            const signature = await signVote(privateKey, voteMessage);
+                            console.log('[Frontend] Signature:', signature.substring(0, 20) + '...');
+
+                            // Submit vote with signature
+                            await ProposalService.vote(proposal.id, choice, signature, timestamp);
                             Alert.alert('Success', 'Vote cast successfully');
                             loadProposal();
                         } catch (err: any) {
