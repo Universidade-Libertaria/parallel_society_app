@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProposalService } from '@/core/services/api/ProposalService';
 import { PROPOSAL_CATEGORIES, ProposalCategory } from '@/core/types/Proposal';
+import { useWalletStore } from '@/store/walletStore';
+import { SecureStorage } from '@/core/secure/SecureStorage';
+import { WalletService } from '@/core/wallet/WalletService';
 
 export default function CreateProposalScreen() {
     const router = useRouter();
@@ -20,8 +23,29 @@ export default function CreateProposalScreen() {
 
         setIsSubmitting(true);
         try {
-            await ProposalService.createProposal(title, category, description);
-            Alert.alert('Success', 'Proposal created successfully!', [
+            const { mnemonic } = useWalletStore.getState();
+
+            // Retrieve private key from secure storage (matches voting logic)
+            const privateKey = await SecureStorage.getEncryptedKey('private_key');
+
+            if (!privateKey) {
+                throw new Error('Private key not found. Please ensure your wallet is set up.');
+            }
+
+            const { walletAddress } = useWalletStore.getState();
+            const authorAddress = walletAddress || WalletService.deriveAddress(privateKey);
+
+            console.log('[CreateProposal] Wallet ready:', { address: authorAddress, hasPrivateKey: !!privateKey });
+
+            await ProposalService.createProposal({
+                title,
+                category,
+                description,
+                authorAddress,
+                privateKey
+            });
+
+            Alert.alert('Success', 'Proposal created and pinned to IPFS!', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
         } catch (error: any) {

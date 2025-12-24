@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ProposalService } from '@/core/types/../services/api/ProposalService';
 import { Proposal } from '@/core/types/Proposal';
@@ -162,6 +162,12 @@ export default function ProposalDetailsScreen() {
 
     const isVotingClosed = ['CLOSED', 'PASSED', 'FAILED'].includes(proposal.status);
 
+    const shortenAddress = (addr: string) => {
+        if (!addr) return '';
+        if (addr.length < 15) return addr;
+        return `${addr.substring(0, 10)}...${addr.substring(addr.length - 4)}`;
+    };
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <Stack.Screen options={{ title: 'Proposal Details' }} />
@@ -182,12 +188,19 @@ export default function ProposalDetailsScreen() {
                 </Text>
             </View>
 
-            <Text style={styles.title}>{proposal.title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                <Text style={[styles.title, { marginBottom: 0 }]}>{proposal.title}</Text>
+                {proposal.proposalCid && (
+                    <TouchableOpacity onPress={() => Linking.openURL(`https://ipfs.filebase.io/ipfs/${proposal.proposalCid}`)}>
+                        <Ionicons name="open-outline" size={18} color="#007AFF" />
+                    </TouchableOpacity>
+                )}
+            </View>
 
             <View style={styles.authorRow}>
                 <Text style={styles.authorLabel}>Proposed by</Text>
                 <Text style={styles.authorAddress}>
-                    {proposal.authorAddress}
+                    {shortenAddress(proposal.authorAddress)}
                 </Text>
             </View>
 
@@ -235,9 +248,20 @@ export default function ProposalDetailsScreen() {
                     </View>
                 </View>
 
-                <Text style={styles.totalVoters}>
-                    Total Voters: {proposal.totalVoters}
-                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    {proposal.resultsCid ? (
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            onPress={() => Linking.openURL(`https://ipfs.filebase.io/ipfs/${proposal.resultsCid}`)}
+                        >
+                            <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '500' }}>Results</Text>
+                            <Ionicons name="open-outline" size={14} color="#007AFF" />
+                        </TouchableOpacity>
+                    ) : <View />}
+                    <Text style={styles.totalVoters}>
+                        Total Voters: {proposal.totalVoters}
+                    </Text>
+                </View>
             </View>
 
             {/* My Vote & Power */}

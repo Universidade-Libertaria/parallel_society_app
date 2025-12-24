@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
@@ -48,7 +48,9 @@ export default function ProposalDetailScreen() {
                     onPress: async () => {
                         setVoting(true);
                         try {
-                            const result = await ProposalService.vote(proposal.id, choice);
+                            // Note: Public view currently uses a simplified vote call. 
+                            // In a real scenario, this would also require EIP-712 signing.
+                            const result = await ProposalService.vote(proposal.id, choice, '0x', Math.floor(Date.now() / 1000));
                             setProposal(result.proposal);
                             // Optimistically update myVote
                             setProposal(prev => prev ? ({
@@ -123,8 +125,8 @@ export default function ProposalDetailScreen() {
 
     if (!proposal) return null;
 
-    const percentFor = calculatePercentage(proposal.totalFor, proposal.tokenPowerVoted);
-    const percentAgainst = calculatePercentage(proposal.totalAgainst, proposal.tokenPowerVoted);
+    const percentFor = calculatePercentage(proposal.totalForRaw, proposal.tokenPowerVotedRaw);
+    const percentAgainst = calculatePercentage(proposal.totalAgainstRaw, proposal.tokenPowerVotedRaw);
     const isActive = proposal.status === 'ACTIVE';
 
     return (
@@ -139,19 +141,26 @@ export default function ProposalDetailScreen() {
                 <View style={styles.headerSection}>
                     <View style={styles.badgesRow}>
                         <View style={[styles.statusBadge, getStatusColor(proposal.status)]}>
-                            <Text style={[styles.statusText, getStatusTextColor(proposal.status)]}>{proposal.status}</Text>
+                            <Text style={[styles.statusLabelText, getStatusTextColor(proposal.status)]}>{proposal.status}</Text>
                         </View>
                         <View style={styles.categoryBadge}>
                             <Text style={styles.categoryText}>{proposal.category}</Text>
                         </View>
                     </View>
 
-                    <Text style={styles.title}>{proposal.title}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                        <Text style={[styles.title, { marginBottom: 0 }]}>{proposal.title}</Text>
+                        {proposal.proposalCid && (
+                            <TouchableOpacity onPress={() => Linking.openURL(`https://ipfs.filebase.io/ipfs/${proposal.proposalCid}`)}>
+                                <Ionicons name="open-outline" size={18} color="#007AFF" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     <View style={styles.metaRow}>
                         <Ionicons name="person-circle-outline" size={20} color="#666" />
                         <Text style={styles.metaText}>
-                            {proposal.authorAddress.slice(0, 6)}...{proposal.authorAddress.slice(-4)}
+                            {proposal.authorAddress.substring(0, 10)}...{proposal.authorAddress.substring(proposal.authorAddress.length - 4)}
                         </Text>
                         <Text style={styles.dot}>•</Text>
                         <Text style={styles.metaText}>
@@ -175,9 +184,20 @@ export default function ProposalDetailScreen() {
                     <View style={styles.tallyCard}>
                         <View style={styles.tallyHeader}>
                             <Text style={styles.tallyTotal}>
-                                {formatTokenAmount(proposal.tokenPowerVoted)} Tokens Voted
+                                {formatTokenAmount(proposal.tokenPowerVotedRaw)} Tokens Voted
                             </Text>
-                            <Text style={styles.voterCount}>{proposal.totalVoters} Voters</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                {proposal.resultsCid && (
+                                    <TouchableOpacity
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                                        onPress={() => Linking.openURL(`https://ipfs.filebase.io/ipfs/${proposal.resultsCid}`)}
+                                    >
+                                        <Text style={{ fontSize: 13, color: '#007AFF', fontWeight: '500' }}>Results</Text>
+                                        <Ionicons name="open-outline" size={14} color="#007AFF" />
+                                    </TouchableOpacity>
+                                )}
+                                <Text style={styles.voterCount}>{proposal.totalVoters} Voters</Text>
+                            </View>
                         </View>
 
                         {/* For Bar */}
@@ -189,7 +209,7 @@ export default function ProposalDetailScreen() {
                             <View style={styles.barBackground}>
                                 <View style={[styles.barFill, { width: `${percentFor}%`, backgroundColor: '#198754' }]} />
                             </View>
-                            <Text style={styles.barAmount}>{formatTokenAmount(proposal.totalFor)} LUT</Text>
+                            <Text style={styles.barAmount}>{formatTokenAmount(proposal.totalForRaw)} LUT</Text>
                         </View>
 
                         {/* Against Bar */}
@@ -201,7 +221,7 @@ export default function ProposalDetailScreen() {
                             <View style={styles.barBackground}>
                                 <View style={[styles.barFill, { width: `${percentAgainst}%`, backgroundColor: '#dc3545' }]} />
                             </View>
-                            <Text style={styles.barAmount}>{formatTokenAmount(proposal.totalAgainst)} LUT</Text>
+                            <Text style={styles.barAmount}>{formatTokenAmount(proposal.totalAgainstRaw)} LUT</Text>
                         </View>
                     </View>
                 </View>
@@ -213,7 +233,7 @@ export default function ProposalDetailScreen() {
                             <View style={styles.votedBanner}>
                                 <Ionicons name="checkmark-circle" size={20} color="#198754" />
                                 <Text style={styles.votedText}>
-                                    You voted {proposal.myVote.choice} with {formatTokenAmount(proposal.myVote.weight)} LUT
+                                    You voted {proposal.myVote.choice} with {formatTokenAmount(proposal.myVote.weightRaw)} LUT
                                 </Text>
                             </View>
                         ) : null}
@@ -285,8 +305,12 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: '#1a1a1a',
-        marginBottom: 12,
         lineHeight: 32,
+    },
+    statusLabelText: {
+        fontSize: 10,
+        fontWeight: '700',
+        textTransform: 'uppercase'
     },
     badgesRow: {
         flexDirection: 'row',

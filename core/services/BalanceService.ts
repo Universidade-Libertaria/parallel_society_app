@@ -33,6 +33,10 @@ export class BalanceService {
         this.provider = new ethers.JsonRpcProvider(rpcUrl || defaultUrl);
     }
 
+    getProvider(): ethers.JsonRpcProvider {
+        return this.provider;
+    }
+
     /**
      * Formats a raw balance (in wei) to a human-readable string
      * @param rawBalance Raw balance in wei

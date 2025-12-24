@@ -7,7 +7,7 @@ export interface UseProposalsHook {
     loading: boolean;
     error: string | null;
     load: () => Promise<void>;
-    add: (title: string, category: string, description: string, endTime: number, authorAddress: string) => Promise<boolean>;
+    add: (params: { title: string, category: string, description: string, endTime: number, authorAddress: string, privateKey: string }) => Promise<boolean>;
     remove: (id: string) => Promise<void>;
 }
 
@@ -29,9 +29,15 @@ export function useProposals(): UseProposalsHook {
         }
     }, []);
 
-    const add = useCallback(async (title: string, category: string, description: string, endTime: number, authorAddress: string) => {
+    const add = useCallback(async (params: { title: string, category: string, description: string, endTime: number, authorAddress: string, privateKey: string }) => {
         try {
-            await ProposalService.createProposal(title, category, description, endTime);
+            console.log('[ProposalService] Creating proposal:', {
+                title: params.title,
+                category: params.category,
+                authorAddress: typeof params.authorAddress === 'string' ? `${params.authorAddress.substring(0, 10)}...` : 'INVALID_TYPE',
+                hasPrivateKey: !!params.privateKey
+            });
+            await ProposalService.createProposal(params);
             await load(); // Refresh the list
             return true;
         } catch (err) {

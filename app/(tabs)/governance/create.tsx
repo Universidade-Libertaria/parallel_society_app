@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Markdown from 'react-native-markdown-display';
 import { useWalletStore } from '@/store/walletStore';
+import { SecureStorage } from '@/core/secure/SecureStorage';
+import { WalletService } from '@/core/wallet/WalletService';
 
 export default function CreateProposalScreen() {
     const router = useRouter();
@@ -53,9 +55,25 @@ export default function CreateProposalScreen() {
                 return;
             }
 
-            const success = await add(title, category as string, description, endDate.getTime(), walletAddress);
+            // Retrieve private key from secure storage (matches voting logic)
+            const privateKey = await SecureStorage.getEncryptedKey('private_key');
+            if (!privateKey) {
+                Alert.alert('Error', 'Private key not found. Please re-import your wallet.');
+                setSubmitting(false);
+                return;
+            }
+
+            const success = await add({
+                title,
+                category: category as string,
+                description,
+                endTime: endDate.getTime(),
+                authorAddress: walletAddress,
+                privateKey: privateKey
+            });
+
             if (success) {
-                Alert.alert('Success', 'Proposal published successfully', [
+                Alert.alert('Success', 'Proposal published and pinned to IPFS!', [
                     { text: 'OK', onPress: () => router.back() }
                 ]);
             } else {

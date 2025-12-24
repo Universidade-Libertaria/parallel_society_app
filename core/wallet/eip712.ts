@@ -4,16 +4,17 @@ import { ethers } from 'ethers';
  * EIP-712 Domain for LUT Governance
  * Must match backend exactly
  */
+/**
+ * EIP-712 Domain for Parallel Society Governance
+ * Must match backend exactly
+ */
 export const EIP712_DOMAIN = {
-    name: 'LUT Governance',
-    version: '1',
-    chainId: 30, // RSK Mainnet - MUST match the network your backend RPC uses
-    verifyingContract: '0x0000000000000000000000000000000000000000'
+    name: 'parallel',
+    version: '1'
 };
 
 /**
- * EIP-712 Types for Vote
- * Must match backend exactly
+ * EIP-712 Types for Vote and Proposal
  */
 export const EIP712_TYPES = {
     Vote: [
@@ -22,6 +23,21 @@ export const EIP712_TYPES = {
         { name: 'choice', type: 'string' },
         { name: 'snapshotBlock', type: 'uint256' },
         { name: 'timestamp', type: 'uint64' }
+    ],
+    Proposal: [
+        { name: 'from', type: 'address' },
+        { name: 'space', type: 'string' },
+        { name: 'timestamp', type: 'uint64' },
+        { name: 'type', type: 'string' },
+        { name: 'title', type: 'string' },
+        { name: 'body', type: 'string' },
+        { name: 'discussion', type: 'string' },
+        { name: 'choices', type: 'string[]' },
+        { name: 'start', type: 'uint64' },
+        { name: 'end', type: 'uint64' },
+        { name: 'snapshot', type: 'uint64' },
+        { name: 'plugins', type: 'string' },
+        { name: 'app', type: 'string' }
     ]
 };
 
@@ -37,29 +53,50 @@ export interface VoteMessage {
 }
 
 /**
+ * Proposal message structure
+ */
+export interface ProposalMessage {
+    from: string;
+    space: string;
+    timestamp: number;
+    type: string;
+    title: string;
+    body: string;
+    discussion: string;
+    choices: string[];
+    start: number;
+    end: number;
+    snapshot: number;
+    plugins: string;
+    app: string;
+}
+
+/**
  * Signs a vote using EIP-712 typed data
- * @param privateKey The voter's private key (hex string)
- * @param message The vote message to sign
- * @returns The signature (hex string)
  */
 export async function signVote(
     privateKey: string,
     message: VoteMessage
 ): Promise<string> {
-    try {
-        // Create wallet from private key
-        const wallet = new ethers.Wallet(privateKey);
+    const wallet = new ethers.Wallet(privateKey);
+    return await wallet.signTypedData(
+        EIP712_DOMAIN,
+        { Vote: EIP712_TYPES.Vote },
+        message
+    );
+}
 
-        // Sign the typed data
-        const signature = await wallet.signTypedData(
-            EIP712_DOMAIN,
-            EIP712_TYPES,
-            message
-        );
-
-        return signature;
-    } catch (error: any) {
-        console.error('Failed to sign vote:', error.message);
-        throw new Error('Failed to sign vote');
-    }
+/**
+ * Signs a proposal using EIP-712 typed data
+ */
+export async function signProposal(
+    privateKey: string,
+    message: ProposalMessage
+): Promise<string> {
+    const wallet = new ethers.Wallet(privateKey);
+    return await wallet.signTypedData(
+        EIP712_DOMAIN,
+        { Proposal: EIP712_TYPES.Proposal },
+        message
+    );
 }

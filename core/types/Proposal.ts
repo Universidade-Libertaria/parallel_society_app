@@ -27,6 +27,15 @@ export interface Proposal {
         choice: 'FOR' | 'AGAINST';
         weightRaw: string;
     } | null;
+
+    // IPFS Pinned Artifacts
+    proposalCid?: string | null;
+    proposalCidPinnedAt?: number | null;
+    proposalCidStatus?: 'pinned' | 'pending' | 'failed';
+
+    resultsCid?: string | null;
+    resultsCidPinnedAt?: number | null;
+    resultsCidStatus?: 'pinned' | 'pending' | 'failed';
 }
 
 export interface Vote {
