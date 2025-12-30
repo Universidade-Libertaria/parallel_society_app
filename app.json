@@ -17,6 +17,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.parallelsociety.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -30,6 +31,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "160eaa0e-0413-420c-aa06-a9f2d178197f"
+      }
+    }
   }
 }
