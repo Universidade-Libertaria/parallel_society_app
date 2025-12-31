@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Share, ActivityIndicator, Alert, ToastAndroid, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share, ActivityIndicator, ToastAndroid, Platform } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useWalletStore } from '@/store/walletStore';
 import QRCode from 'react-native-qrcode-svg';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useState, useEffect } from 'react';
 import { TOKENS } from '@/core/config/tokens';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ReceiveScreen() {
     const { token } = useLocalSearchParams<{ token: 'RBTC' | 'LUT' }>();
@@ -17,6 +18,7 @@ export default function ReceiveScreen() {
     const tokenConfig = TOKENS[activeToken];
 
     const [copied, setCopied] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
 
     const handleCopy = async () => {
         if (!walletAddress) return;
@@ -28,7 +30,7 @@ export default function ReceiveScreen() {
         if (Platform.OS === 'android') {
             ToastAndroid.show('Address copied to clipboard', ToastAndroid.SHORT);
         } else {
-            Alert.alert('Copied', 'Address copied to clipboard');
+            setModalVisible(true);
         }
 
         // Reset icon after delay
@@ -145,6 +147,14 @@ export default function ReceiveScreen() {
                     <Text style={styles.shareButtonText}>Share</Text>
                 </TouchableOpacity>
             </View>
+
+            <InfoModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                title="Copied"
+                message="Address copied to clipboard"
+                variant="success"
+            />
         </View>
     );
 }

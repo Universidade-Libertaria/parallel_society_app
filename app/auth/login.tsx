@@ -1,45 +1,57 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { SecureStorage } from '@/core/secure/SecureStorage';
+import { InfoModal } from '@/components/ui/InfoModal';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { login, isAuthenticated, loading, error } = useAuthStore();
-    const [isChecking, setIsChecking] = useState(true);
+    const login = useAuthStore((state) => state.login);
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (isAuthenticated) {
-            router.replace('/(tabs)/wallet');
-        } else {
-            setIsChecking(false);
-        }
-    }, [isAuthenticated]);
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'error' | 'success' | 'warning';
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        variant: 'error'
+    });
 
     const handleLogin = async () => {
+        setLoading(true);
         try {
             const mnemonic = await SecureStorage.getEncryptedKey('mnemonic');
             if (!mnemonic) {
-                Alert.alert('Error', 'Wallet mnemonic not found. Please restore your wallet.');
-                router.replace('/wallet/setup');
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Wallet mnemonic not found. Please restore your wallet.',
+                    variant: 'error'
+                });
+                setLoading(false);
                 return;
             }
 
             await login(mnemonic);
+            router.replace('/(tabs)/wallet');
         } catch (err: any) {
-            Alert.alert('Login Failed', err.message || 'An error occurred during authentication.');
+            setModalConfig({
+                visible: true,
+                title: 'Login Failed',
+                message: err.message || 'An error occurred during authentication.',
+                variant: 'error'
+            });
+            setLoading(false);
         }
     };
 
-    if (isChecking) {
-        return (
-            <View style={styles.container}>
-                <ActivityIndicator size="large" color="#007AFF" />
-            </View>
-        );
-    }
 
     return (
         <View style={styles.container}>
@@ -63,8 +75,6 @@ export default function LoginScreen() {
                         <Text style={styles.buttonText}>Sign in with Wallet</Text>
                     </TouchableOpacity>
                 )}
-
-                {error && <Text style={styles.errorText}>{error}</Text>}
             </View>
 
             <TouchableOpacity
@@ -74,6 +84,14 @@ export default function LoginScreen() {
             >
                 <Text style={styles.linkText}>Use a different wallet</Text>
             </TouchableOpacity>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={() => setModalConfig({ ...modalConfig, visible: false })}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
         </View>
     );
 }

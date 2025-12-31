@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { WalletService } from '@/core/wallet/WalletService';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { useWalletStore } from '@/store/walletStore';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ImportWalletScreen() {
     const router = useRouter();
@@ -11,10 +12,32 @@ export default function ImportWalletScreen() {
     const [mnemonicInput, setMnemonicInput] = useState('');
     const [isImporting, setIsImporting] = useState(false);
 
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
+
     const handleImport = async () => {
         const words = mnemonicInput.trim().split(/\s+/);
         if (words.length !== 24 && words.length !== 12) {
-            Alert.alert('Invalid Phrase', 'Please enter a valid 12 or 24-word recovery phrase.');
+            setModalConfig({
+                visible: true,
+                title: 'Invalid Phrase',
+                message: 'Please enter a valid 12 or 24-word recovery phrase.',
+                variant: 'error',
+                onClose: closePortal
+            });
             return;
         }
 
@@ -30,7 +53,13 @@ export default function ImportWalletScreen() {
             setWalletCreated(true);
             router.push('/auth/set-pin');
         } catch (e) {
-            Alert.alert('Error', 'Invalid recovery phrase. Please check and try again.');
+            setModalConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Invalid recovery phrase. Please check and try again.',
+                variant: 'error',
+                onClose: closePortal
+            });
         } finally {
             setIsImporting(false);
         }
@@ -61,7 +90,15 @@ export default function ImportWalletScreen() {
             >
                 <Text style={styles.buttonText}>{isImporting ? 'Importing...' : 'Import Wallet'}</Text>
             </TouchableOpacity>
-        </ScrollView>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
+        </ScrollView >
     );
 }
 

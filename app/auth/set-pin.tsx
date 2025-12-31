@@ -1,11 +1,12 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingStore } from '@/store/onboardingStore';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { ethers } from 'ethers';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function SetPinScreen() {
     const router = useRouter();
@@ -16,13 +17,30 @@ export default function SetPinScreen() {
     const [useBiometrics, setUseBiometrics] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'error' | 'success' | 'warning';
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    });
+
+    const showAlert = (title: string, message: string, variant: 'info' | 'error' | 'success' | 'warning' = 'error') => {
+        setModalConfig({ visible: true, title, message, variant });
+    };
+
     const handleFinish = async () => {
         if (pin.length !== 6) {
-            Alert.alert('Invalid PIN', 'PIN must be 6 digits.');
+            showAlert('Invalid PIN', 'PIN must be 6 digits.');
             return;
         }
         if (pin !== confirmPin) {
-            Alert.alert('Mismatch', 'PINs do not match.');
+            showAlert('Mismatch', 'PINs do not match.');
             return;
         }
 
@@ -51,7 +69,7 @@ export default function SetPinScreen() {
             router.dismissAll();
             router.replace('/home');
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to save security settings.');
+            showAlert('Error', e.message || 'Failed to save security settings.');
             setIsSubmitting(false);
         }
     };
@@ -98,6 +116,14 @@ export default function SetPinScreen() {
             >
                 <Text style={styles.buttonText}>{isSubmitting ? 'Setting up...' : 'Finish Wallet Setup'}</Text>
             </TouchableOpacity>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={() => setModalConfig({ ...modalConfig, visible: false })}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
         </View>
     );
 }

@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '@/store/walletStore';
 import { useState, useEffect } from 'react';
 import { WalletService } from '@/core/wallet/WalletService';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { BIP39_WORDLIST } from '@/core/wallet/wordlist';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ConfirmPhraseScreen() {
     const router = useRouter();
@@ -16,6 +17,22 @@ export default function ConfirmPhraseScreen() {
     const [selectedWords, setSelectedWords] = useState<string[]>(['', '', '', '']);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
     useEffect(() => {
         if (!mnemonic) {
@@ -88,7 +105,13 @@ export default function ConfirmPhraseScreen() {
             // Navigate to App Lock setup
             router.push('/auth/set-pin');
         } catch (e) {
-            Alert.alert('Error', 'Failed to save wallet securely.');
+            setModalConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to save wallet securely.',
+                variant: 'error',
+                onClose: closePortal
+            });
             setIsSubmitting(false);
         }
     };
@@ -140,6 +163,14 @@ export default function ConfirmPhraseScreen() {
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                 <Text style={styles.backButtonText}>Back to View Phrase</Text>
             </TouchableOpacity>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
         </ScrollView>
     );
 }

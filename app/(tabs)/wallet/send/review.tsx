@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,27 @@ import { sendService } from '@/core/services/SendService';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { ethers } from 'ethers';
 import { TokenSymbol } from '@/core/config/tokens';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ReviewScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { addPendingTx } = useWalletStore();
     const [sending, setSending] = useState(false);
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
 
     // Params
     const token = params.token as TokenSymbol;
@@ -66,13 +81,27 @@ export default function ReviewScreen() {
                 status: 'pending'
             });
 
-            // 5. Navigate to Home
-            Alert.alert('Success', 'Transaction Sent!');
-            router.replace('/wallet');
+            // 5. Show Success Modal
+            setModalConfig({
+                visible: true,
+                title: 'Success',
+                message: 'Transaction Sent!',
+                variant: 'success',
+                onClose: () => {
+                    setModalConfig(prev => ({ ...prev, visible: false }));
+                    router.replace('/wallet');
+                }
+            });
 
         } catch (error) {
             console.error('Send failed:', error);
-            Alert.alert('Transaction Failed', (error as Error).message);
+            setModalConfig({
+                visible: true,
+                title: 'Transaction Failed',
+                message: (error as Error).message,
+                variant: 'error',
+                onClose: () => setModalConfig(prev => ({ ...prev, visible: false }))
+            });
         } finally {
             setSending(false);
         }
@@ -153,7 +182,15 @@ export default function ReviewScreen() {
                     <Text style={styles.secondaryButtonText}>Cancel</Text>
                 </TouchableOpacity>
             </View>
-        </SafeAreaView>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
+        </SafeAreaView >
     );
 }
 

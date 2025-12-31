@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useWalletStore } from '@/store/walletStore';
 import { WalletTx, TxDirection, TxStatus } from '@/core/types/Transaction';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 type FilterType = 'All' | 'Received' | 'Sent' | 'Contract' | 'RBTC' | 'LUT';
 
@@ -11,6 +12,21 @@ export default function TransactionHistoryScreen() {
     const router = useRouter();
     const { filter } = useLocalSearchParams();
     const { txHistory, loadTxHistory, loadingTxHistory, walletAddress } = useWalletStore();
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        actions?: { text: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' }[];
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
     // Initialize filter from params if available and valid, otherwise default to 'All'
     const initialFilter = (filter && ['All', 'Received', 'Sent', 'Contract', 'RBTC', 'LUT'].includes(filter as string))
@@ -172,23 +188,35 @@ export default function TransactionHistoryScreen() {
                         <TouchableOpacity
                             style={styles.footerButton}
                             onPress={() => {
-                                // Reusing the Alert logic from dashboard or just direct nav if simple
-                                // Let's use direct navigation for now or simple choice if needed.
-                                // The user's request implies quick access.
-                                // Replicating the Dashboard Receive logic is best for consistency.
-                                // For simplicity/speed in this "history" context, maybe just navigate to Receive?
-                                // Let's replicate the Alert logic implicitly or navigate to dashboard?
-                                // Better: Re-implement the Alert here.
-                                const { Alert } = require('react-native'); // Inline require to avoid top-level conflict if any
-                                Alert.alert(
-                                    'Receive Assets',
-                                    'Select token to receive',
-                                    [
-                                        { text: 'RBTC', onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } }) },
-                                        { text: 'LUT', onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } }) },
-                                        { text: 'Cancel', style: 'cancel' }
+                                setModalConfig({
+                                    visible: true,
+                                    title: 'Receive Assets',
+                                    message: 'Select token to receive',
+                                    variant: 'info',
+                                    actions: [
+                                        {
+                                            text: 'RBTC',
+                                            onPress: () => {
+                                                closePortal();
+                                                router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } });
+                                            },
+                                            variant: 'primary'
+                                        },
+                                        {
+                                            text: 'LUT',
+                                            onPress: () => {
+                                                closePortal();
+                                                router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } });
+                                            },
+                                            variant: 'primary'
+                                        },
+                                        {
+                                            text: 'Cancel',
+                                            onPress: closePortal,
+                                            variant: 'secondary'
+                                        }
                                     ]
-                                );
+                                });
                             }}
                         >
                             <Ionicons name="arrow-down" size={20} color="#fff" />
@@ -206,6 +234,15 @@ export default function TransactionHistoryScreen() {
                         </TouchableOpacity>
                     </View>
                 }
+            />
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={closePortal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+                actions={modalConfig.actions}
             />
         </View>
     );
@@ -342,9 +379,6 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     sendButton: {
-        backgroundColor: '#34C759', // Green for send? Or same blue? Often Send is blue/primary or distinct.
-        // Let's keep same blue for consistency or maybe secondary.
-        // Actually, let's make Send Blue and Receive Green? Or standard Blue/Blue.
         backgroundColor: '#007AFF',
     },
     footerButtonText: {

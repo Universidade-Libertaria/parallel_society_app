@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
@@ -8,6 +8,7 @@ import { Proposal } from '@/core/types/Proposal';
 import { firebaseAuth } from '@/core/config/firebase';
 import { useLutBalance } from '@/core/hooks/useLutBalance';
 import { ethers } from 'ethers';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ProposalDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -17,6 +18,23 @@ export default function ProposalDetailScreen() {
     const [voting, setVoting] = useState(false);
     const { formatted: lutBalance } = useLutBalance();
 
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        actions?: { text: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' }[];
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
+
     const loadProposal = useCallback(async () => {
         if (!id) return;
         setLoading(true);
@@ -24,8 +42,16 @@ export default function ProposalDetailScreen() {
             const data = await ProposalService.fetchProposalById(id as string);
             setProposal(data);
         } catch (error) {
-            Alert.alert('Error', 'Failed to load proposal details');
-            router.back();
+            setModalConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to load proposal details',
+                variant: 'error',
+                onClose: () => {
+                    closePortal();
+                    router.back();
+                }
+            });
         } finally {
             setLoading(false);
         }
@@ -38,37 +64,51 @@ export default function ProposalDetailScreen() {
     const handleVote = async (choice: 'FOR' | 'AGAINST') => {
         if (!proposal) return;
 
-        Alert.alert(
-            `Vote ${choice}`,
-            `Are you sure you want to vote ${choice} for this proposal? Your current voting power is ${lutBalance} LUT.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
+        setModalConfig({
+            visible: true,
+            title: `Vote ${choice}`,
+            message: `Are you sure you want to vote ${choice} for this proposal? Your current voting power is ${lutBalance} LUT.`,
+            variant: 'info',
+            onClose: closePortal,
+            actions: [
+                { text: 'Cancel', onPress: closePortal, variant: 'secondary' },
                 {
                     text: 'Confirm Vote',
                     onPress: async () => {
+                        closePortal();
                         setVoting(true);
                         try {
-                            // Note: Public view currently uses a simplified vote call. 
-                            // In a real scenario, this would also require EIP-712 signing.
                             const result = await ProposalService.vote(proposal.id, choice, '0x', Math.floor(Date.now() / 1000));
                             setProposal(result.proposal);
-                            // Optimistically update myVote
                             setProposal(prev => prev ? ({
                                 ...prev,
                                 ...result.proposal,
                                 myVote: result.myVote
                             }) : null);
 
-                            Alert.alert('Success', 'Your vote has been recorded.');
+                            setModalConfig({
+                                visible: true,
+                                title: 'Success',
+                                message: 'Your vote has been recorded.',
+                                variant: 'success',
+                                onClose: closePortal
+                            });
                         } catch (error: any) {
-                            Alert.alert('Vote Failed', error.message || 'An error occurred while voting.');
+                            setModalConfig({
+                                visible: true,
+                                title: 'Vote Failed',
+                                message: error.message || 'An error occurred while voting.',
+                                variant: 'error',
+                                onClose: closePortal
+                            });
                         } finally {
                             setVoting(false);
                         }
-                    }
+                    },
+                    variant: 'primary'
                 }
             ]
-        );
+        });
     };
 
     const getStatusColor = (status: string) => {
@@ -280,6 +320,15 @@ export default function ProposalDetailScreen() {
                     </View>
                 )}
             </ScrollView>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+                actions={modalConfig.actions}
+            />
         </View>
     );
 }

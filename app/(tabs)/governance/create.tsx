@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useProposals } from '@/core/hooks/useProposals';
 import { useLutBalance } from '@/core/hooks/useLutBalance';
@@ -9,7 +9,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Markdown from 'react-native-markdown-display';
 import { useWalletStore } from '@/store/walletStore';
 import { SecureStorage } from '@/core/secure/SecureStorage';
-import { WalletService } from '@/core/wallet/WalletService';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function CreateProposalScreen() {
     const router = useRouter();
@@ -24,6 +24,22 @@ export default function CreateProposalScreen() {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [isPreview, setIsPreview] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
     const isValid = title.trim().length > 0 && category !== '' && description.trim().length > 0;
 
@@ -44,13 +60,25 @@ export default function CreateProposalScreen() {
             // Or better, let's re-verify with a direct service call if strictness was needed, but hook is fine.
 
             if (!canCreateProposal) {
-                Alert.alert('Insufficient Balance', 'You need at least 2,000 LUT to create a proposal.');
+                setModalConfig({
+                    visible: true,
+                    title: 'Insufficient Balance',
+                    message: 'You need at least 2,000 LUT to create a proposal.',
+                    variant: 'warning',
+                    onClose: closePortal
+                });
                 setSubmitting(false);
                 return;
             }
 
             if (!walletAddress) {
-                Alert.alert('Error', 'Wallet address not found');
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Wallet address not found',
+                    variant: 'error',
+                    onClose: closePortal
+                });
                 setSubmitting(false);
                 return;
             }
@@ -58,7 +86,13 @@ export default function CreateProposalScreen() {
             // Retrieve private key from secure storage (matches voting logic)
             const privateKey = await SecureStorage.getEncryptedKey('private_key');
             if (!privateKey) {
-                Alert.alert('Error', 'Private key not found. Please re-import your wallet.');
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Private key not found. Please re-import your wallet.',
+                    variant: 'error',
+                    onClose: closePortal
+                });
                 setSubmitting(false);
                 return;
             }
@@ -73,14 +107,33 @@ export default function CreateProposalScreen() {
             });
 
             if (success) {
-                Alert.alert('Success', 'Proposal published and pinned to IPFS!', [
-                    { text: 'OK', onPress: () => router.back() }
-                ]);
+                setModalConfig({
+                    visible: true,
+                    title: 'Success',
+                    message: 'Proposal published and pinned to IPFS!',
+                    variant: 'success',
+                    onClose: () => {
+                        closePortal();
+                        router.back();
+                    }
+                });
             } else {
-                Alert.alert('Error', 'Failed to publish proposal');
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Failed to publish proposal',
+                    variant: 'error',
+                    onClose: closePortal
+                });
             }
         } catch (e: any) {
-            Alert.alert('Error', e.message || 'An unexpected error occurred');
+            setModalConfig({
+                visible: true,
+                title: 'Error',
+                message: e.message || 'An unexpected error occurred',
+                variant: 'error',
+                onClose: closePortal
+            });
         } finally {
             setSubmitting(false);
         }
@@ -209,7 +262,15 @@ export default function CreateProposalScreen() {
                     </Text>
                 </TouchableOpacity>
             </View>
-        </KeyboardAvoidingView>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
+        </KeyboardAvoidingView >
     );
 }
 

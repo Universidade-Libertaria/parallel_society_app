@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProposalService } from '@/core/services/api/ProposalService';
@@ -7,6 +7,7 @@ import { PROPOSAL_CATEGORIES, ProposalCategory } from '@/core/types/Proposal';
 import { useWalletStore } from '@/store/walletStore';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { WalletService } from '@/core/wallet/WalletService';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function CreateProposalScreen() {
     const router = useRouter();
@@ -15,9 +16,31 @@ export default function CreateProposalScreen() {
     const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        onClose: () => void;
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        onClose: () => { },
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
+
     const handlePublish = async () => {
         if (!title.trim() || !description.trim()) {
-            Alert.alert('Error', 'Title and Description are required.');
+            setModalConfig({
+                visible: true,
+                title: 'Error',
+                message: 'Title and Description are required.',
+                variant: 'error',
+                onClose: closePortal
+            });
             return;
         }
 
@@ -45,12 +68,25 @@ export default function CreateProposalScreen() {
                 privateKey
             });
 
-            Alert.alert('Success', 'Proposal created and pinned to IPFS!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            setModalConfig({
+                visible: true,
+                title: 'Success',
+                message: 'Proposal created and pinned to IPFS!',
+                variant: 'success',
+                onClose: () => {
+                    closePortal();
+                    router.back();
+                }
+            });
         } catch (error: any) {
             console.error('Failed to create proposal:', error);
-            Alert.alert('Creation Failed', error.message || 'An error occurred while creating the proposal.');
+            setModalConfig({
+                visible: true,
+                title: 'Creation Failed',
+                message: error.message || 'An error occurred while creating the proposal.',
+                variant: 'error',
+                onClose: closePortal
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -120,6 +156,14 @@ export default function CreateProposalScreen() {
                     <Text style={styles.publishButtonText}>Publish Proposal</Text>
                 )}
             </TouchableOpacity>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={modalConfig.onClose}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
         </ScrollView>
     );
 }

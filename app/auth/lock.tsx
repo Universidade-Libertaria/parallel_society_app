@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { useAuthStore } from '@/store/authStore';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { ethers } from 'ethers';
 import { Ionicons } from '@expo/vector-icons';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function LockScreen() {
     const router = useRouter();
@@ -13,6 +14,23 @@ export default function LockScreen() {
     const [pin, setPin] = useState('');
     const [isVerifying, setIsVerifying] = useState(false);
     const [hasBiometrics, setHasBiometrics] = useState(false);
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        variant: 'info' | 'error' | 'success' | 'warning';
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+        variant: 'error'
+    });
+
+    const showAlert = (title: string, message: string, variant: 'info' | 'error' | 'success' | 'warning' = 'error') => {
+        setModalConfig({ visible: true, title, message, variant });
+    };
 
     useEffect(() => {
         checkBiometrics();
@@ -51,7 +69,7 @@ export default function LockScreen() {
             try {
                 const storedHash = await SecureStorage.getPinHash();
                 if (!storedHash) {
-                    Alert.alert('Error', 'PIN not configured. Please contact support.');
+                    showAlert('Error', 'PIN not configured. Please contact support.');
                     return;
                 }
 
@@ -59,11 +77,11 @@ export default function LockScreen() {
                 if (hash === storedHash) {
                     unlock();
                 } else {
-                    Alert.alert('Incorrect PIN', 'The PIN you entered is incorrect.');
+                    showAlert('Incorrect PIN', 'The PIN you entered is incorrect.');
                     setPin('');
                 }
             } catch (e) {
-                Alert.alert('Error', 'Failed to verify PIN.');
+                showAlert('Error', 'Failed to verify PIN.');
             } finally {
                 setIsVerifying(false);
             }
@@ -127,6 +145,14 @@ export default function LockScreen() {
                     <Text style={styles.biometricText}>Unlock with Biometrics</Text>
                 </TouchableOpacity>
             )}
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={() => setModalConfig({ ...modalConfig, visible: false })}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+            />
         </View>
     );
 }

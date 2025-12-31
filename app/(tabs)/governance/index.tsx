@@ -14,7 +14,23 @@ export default function GovernanceScreen() {
     const { proposals, loading, load, remove } = useProposals();
     const { formatted: lutBalance, canCreateProposal, refresh: refreshBalance } = useLutBalance();
     const currentUser = firebaseAuth.currentUser;
-    const [showBalanceModal, setShowBalanceModal] = useState(false);
+
+    // Generic Modal State
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        description?: string;
+        footerText?: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        actions?: { text: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' }[];
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
     useFocusEffect(
         useCallback(() => {
@@ -28,24 +44,37 @@ export default function GovernanceScreen() {
     };
 
     const handleDelete = (proposalId: string, title: string) => {
-        Alert.alert(
-            "Delete Proposal",
-            `Are you sure you want to delete "${title}"? This action cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
+        setModalConfig({
+            visible: true,
+            title: "Delete Proposal",
+            message: `Are you sure you want to delete "${title}"? This action cannot be undone.`,
+            variant: 'warning',
+            actions: [
+                {
+                    text: "Cancel",
+                    onPress: closePortal,
+                    variant: 'secondary'
+                },
                 {
                     text: "Delete",
-                    style: "destructive",
+                    variant: 'danger',
                     onPress: async () => {
+                        closePortal();
                         try {
                             await remove(proposalId);
                         } catch (error: any) {
-                            Alert.alert("Error", error.message || "Failed to delete proposal");
+                            setModalConfig({
+                                visible: true,
+                                title: "Error",
+                                message: error.message || "Failed to delete proposal",
+                                variant: 'error',
+                                onClose: closePortal
+                            } as any);
                         }
                     }
                 }
             ]
-        );
+        });
     };
 
     const renderProposal = ({ item }: { item: Proposal }) => {
@@ -169,7 +198,14 @@ export default function GovernanceScreen() {
                     if (canCreateProposal) {
                         router.push('/governance/create');
                     } else {
-                        setShowBalanceModal(true);
+                        setModalConfig({
+                            visible: true,
+                            title: "Create Proposal",
+                            message: "To create a proposal, you need at least 2,000 LUT.",
+                            description: "This requirement helps prevent spam and ensures proposals come from engaged citizens.",
+                            footerText: `Your current balance: ${lutBalance} LUT`,
+                            variant: 'info'
+                        });
                     }
                 }}
             >
@@ -178,12 +214,14 @@ export default function GovernanceScreen() {
             </TouchableOpacity>
 
             <InfoModal
-                visible={showBalanceModal}
-                onClose={() => setShowBalanceModal(false)}
-                title="Create Proposal"
-                message="To create a proposal, you need at least 2,000 LUT."
-                description="This requirement helps prevent spam and ensures proposals come from engaged citizens."
-                footerText={`Your current balance: ${lutBalance} LUT`}
+                visible={modalConfig.visible}
+                onClose={closePortal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                description={modalConfig.description}
+                footerText={modalConfig.footerText}
+                variant={modalConfig.variant}
+                actions={modalConfig.actions as any}
             />
         </View>
     );

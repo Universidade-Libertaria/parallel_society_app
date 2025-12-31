@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Alert, Platform, ToastAndroid } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Platform, ToastAndroid } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useWalletStore } from '@/store/walletStore';
@@ -7,6 +7,7 @@ import { TOKENS } from '@/core/config/tokens';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { ethers } from 'ethers';
 import * as Clipboard from 'expo-clipboard';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 // Mock USD prices for display (replace with real price feed later)
 const MOCK_USD_PRICES = {
@@ -29,6 +30,22 @@ export default function WalletDashboardScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [isInitializing, setIsInitializing] = useState(true);
     const [copied, setCopied] = useState(false);
+
+    // Modal state
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        description?: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        actions?: { text: string; onPress: () => void; variant?: 'primary' | 'secondary' }[];
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const closePortal = () => setModalConfig({ ...modalConfig, visible: false });
 
     // Load wallet address and balances on mount
     useEffect(() => {
@@ -101,7 +118,12 @@ export default function WalletDashboardScreen() {
             if (Platform.OS === 'android') {
                 ToastAndroid.show('Address copied to clipboard', ToastAndroid.SHORT);
             } else {
-                Alert.alert('Copied', 'Address copied to clipboard');
+                setModalConfig({
+                    visible: true,
+                    title: 'Copied',
+                    message: 'Address copied to clipboard',
+                    variant: 'success'
+                });
             }
 
             // Reset icon after delay
@@ -242,24 +264,32 @@ export default function WalletDashboardScreen() {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => {
-                        Alert.alert(
-                            'Receive Assets',
-                            'Select token to receive',
-                            [
+                        setModalConfig({
+                            visible: true,
+                            title: 'Receive Assets',
+                            message: 'Select token to receive',
+                            actions: [
                                 {
                                     text: 'RBTC (Rootstock Bitcoin)',
-                                    onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } })
+                                    onPress: () => {
+                                        closePortal();
+                                        router.push({ pathname: '/wallet/receive', params: { token: 'RBTC' } });
+                                    }
                                 },
                                 {
                                     text: 'LUT (Governance Token)',
-                                    onPress: () => router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } })
+                                    onPress: () => {
+                                        closePortal();
+                                        router.push({ pathname: '/wallet/receive', params: { token: 'LUT' } });
+                                    }
                                 },
                                 {
                                     text: 'Cancel',
-                                    style: 'cancel'
+                                    onPress: closePortal,
+                                    variant: 'secondary'
                                 }
                             ]
-                        );
+                        });
                     }}
                 >
                     <View style={styles.actionIcon}>
@@ -286,6 +316,15 @@ export default function WalletDashboardScreen() {
             <Text style={styles.infoText}>
                 Pull down to refresh balances
             </Text>
+
+            <InfoModal
+                visible={modalConfig.visible}
+                onClose={closePortal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                variant={modalConfig.variant}
+                actions={modalConfig.actions}
+            />
         </ScrollView >
     );
 }

@@ -18,9 +18,24 @@ export default function ProposalDetailsScreen() {
     const [proposal, setProposal] = useState<Proposal | null>(null);
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
-    const [showVoteModal, setShowVoteModal] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { walletAddress } = useWalletStore();
+
+    // Generic Modal State
+    const [modalConfig, setModalConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        description?: string;
+        variant?: 'info' | 'error' | 'success' | 'warning';
+        actions?: { text: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' }[];
+    }>({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const closePortal = () => setModalConfig(prev => ({ ...prev, visible: false }));
 
     const loadProposal = useCallback(async () => {
         if (!id || typeof id !== 'string') return;
@@ -46,38 +61,39 @@ export default function ProposalDetailsScreen() {
         const powerRaw = proposal.userVotingPowerRaw || '0';
 
         if (BigInt(powerRaw) === 0n) {
-            setShowVoteModal(true);
+            setModalConfig({
+                visible: true,
+                title: "Voting Power",
+                message: "You don’t have any voting power for this proposal.",
+                description: "Voting power is determined by your LUT balance at the snapshot block. Add LUT to your wallet to participate in future proposals.",
+                variant: 'info'
+            });
             return;
         }
 
         const formattedPower = formatTokens(powerRaw);
 
-        Alert.alert(
-            "Confirm Vote",
-            `You are about to vote ${choice} with ${formattedPower} voting power (based on snapshot block ${proposal.snapshotBlock || 'latest'}).`,
-            [
-                { text: "Cancel", style: "cancel" },
+        setModalConfig({
+            visible: true,
+            title: "Confirm Vote",
+            message: `You are about to vote ${choice} with ${formattedPower} voting power.`,
+            description: `Based on snapshot block ${proposal.snapshotBlock || 'latest'}.`,
+            variant: 'info',
+            actions: [
+                {
+                    text: "Cancel",
+                    onPress: closePortal,
+                    variant: 'secondary'
+                },
                 {
                     text: "Confirm",
                     onPress: async () => {
+                        closePortal();
                         setVoting(true);
                         try {
-                            // Retrieve private key from secure storage
                             const privateKey = await SecureStorage.getEncryptedKey('private_key');
-                            if (!privateKey) {
-                                throw new Error('Private key not found. Please re-import your wallet.');
-                            }
+                            if (!privateKey) throw new Error('Private key not found.');
 
-                            // Get authenticated user's UID (should be the wallet address)
-                            const user = firebaseAuth.currentUser;
-                            const authenticatedUID = user?.uid;
-
-                            console.log('[Frontend] ========== VOTE DEBUG ==========');
-                            console.log('[Frontend] Authenticated UID:', authenticatedUID);
-                            console.log('[Frontend] Wallet Address from store:', walletAddress);
-                            console.log('[Frontend] Wallet Address (lowercase):', walletAddress?.toLowerCase());
-
-                            // Build vote message
                             const timestamp = Math.floor(Date.now() / 1000);
                             const voteMessage: VoteMessage = {
                                 proposalId: proposal.id,
@@ -87,25 +103,32 @@ export default function ProposalDetailsScreen() {
                                 timestamp
                             };
 
-                            console.log('[Frontend] Vote message:', JSON.stringify(voteMessage, null, 2));
-
-                            // Sign the vote
                             const signature = await signVote(privateKey, voteMessage);
-                            console.log('[Frontend] Signature:', signature.substring(0, 20) + '...');
-
-                            // Submit vote with signature
                             await ProposalService.vote(proposal.id, choice, signature, timestamp);
-                            Alert.alert('Success', 'Vote cast successfully');
+
+                            setModalConfig({
+                                visible: true,
+                                title: 'Success',
+                                message: 'Vote cast successfully',
+                                variant: 'success',
+                                onClose: closePortal
+                            } as any);
                             loadProposal();
                         } catch (err: any) {
-                            Alert.alert('Error', err.message || 'Failed to cast vote');
+                            setModalConfig({
+                                visible: true,
+                                title: 'Error',
+                                message: err.message || 'Failed to cast vote',
+                                variant: 'error',
+                                onClose: closePortal
+                            } as any);
                         } finally {
                             setVoting(false);
                         }
                     }
                 }
             ]
-        );
+        });
     };
 
     if (loading) {
@@ -321,11 +344,13 @@ export default function ProposalDetailsScreen() {
             )}
 
             <InfoModal
-                visible={showVoteModal}
-                onClose={() => setShowVoteModal(false)}
-                title="Voting Power"
-                message="You don’t have any voting power yet."
-                description="Add some LUT to your wallet to vote on proposals."
+                visible={modalConfig.visible}
+                onClose={closePortal}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                description={modalConfig.description}
+                variant={modalConfig.variant}
+                actions={modalConfig.actions as any}
             />
 
             {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
