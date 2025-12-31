@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,14 @@ import { useLutBalance } from '@/core/hooks/useLutBalance';
 import { Proposal } from '@/core/types/Proposal';
 import Markdown from 'react-native-markdown-display';
 import { firebaseAuth } from '@/core/config/firebase';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function GovernanceScreen() {
     const router = useRouter();
     const { proposals, loading, load, remove } = useProposals();
     const { formatted: lutBalance, canCreateProposal, refresh: refreshBalance } = useLutBalance();
     const currentUser = firebaseAuth.currentUser;
+    const [showBalanceModal, setShowBalanceModal] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -114,7 +116,7 @@ export default function GovernanceScreen() {
 
                     <View style={styles.footer}>
                         <Text style={styles.authorText}>
-                            by {item.authorAddress ? `${item.authorAddress.slice(0, 6)}...${item.authorAddress.slice(-4)}` : 'Unknown'}
+                            by {item.authorName || (item.authorAddress ? `${item.authorAddress.slice(0, 6)}...${item.authorAddress.slice(-4)}` : 'Unknown')}
                         </Text>
                         <Text style={styles.endDateText}>
                             {['CLOSED', 'PASSED', 'FAILED'].includes(item.status) ? 'Ended' : 'Ends'} {new Date(item.endTime).toLocaleDateString()}
@@ -132,15 +134,6 @@ export default function GovernanceScreen() {
                 <Text style={styles.balanceLabel}>Your Voting Power</Text>
                 <View style={styles.balanceRow}>
                     <Text style={styles.balanceValue}>{lutBalance} LUT</Text>
-                    {canCreateProposal ? (
-                        <View style={styles.statusTagSuccess}>
-                            <Text style={styles.balanceStatusText}>Eligible</Text>
-                        </View>
-                    ) : (
-                        <View style={styles.statusTagValues}>
-                            <Text style={styles.statusTextWarning}>Need 2k+</Text>
-                        </View>
-                    )}
                 </View>
             </View>
 
@@ -167,16 +160,31 @@ export default function GovernanceScreen() {
 
             {/* FAB for Create Proposal */}
             <TouchableOpacity
+                activeOpacity={0.8}
                 style={[
                     styles.fab,
                     !canCreateProposal && styles.fabDisabled
                 ]}
-                onPress={() => router.push('/governance/create')}
-                disabled={!canCreateProposal}
+                onPress={() => {
+                    if (canCreateProposal) {
+                        router.push('/governance/create');
+                    } else {
+                        setShowBalanceModal(true);
+                    }
+                }}
             >
                 <Ionicons name="add" size={24} color="#fff" />
                 <Text style={styles.fabText}>Create Proposal</Text>
             </TouchableOpacity>
+
+            <InfoModal
+                visible={showBalanceModal}
+                onClose={() => setShowBalanceModal(false)}
+                title="Create Proposal"
+                message="To create a proposal, you need at least 2,000 LUT."
+                description="This requirement helps prevent spam and ensures proposals come from engaged citizens."
+                footerText={`Your current balance: ${lutBalance} LUT`}
+            />
         </View>
     );
 }

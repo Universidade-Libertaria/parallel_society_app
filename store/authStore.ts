@@ -12,7 +12,7 @@ interface AuthState {
     setUser: (user: User | null) => void;
     setIsAuthenticated: (auth: boolean) => void;
     setBiometricsEnabled: (enabled: boolean) => void;
-    login: (mnemonic: string) => Promise<void>;
+    login: (mnemonic: string, username?: string, email?: string) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -27,10 +27,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     setIsAuthenticated: (auth) => set({ isAuthenticated: auth }),
     setBiometricsEnabled: (enabled) => set({ hasBiometricsEnabled: enabled }),
 
-    login: async (mnemonic: string) => {
+    login: async (mnemonic: string, username?: string, email?: string) => {
         set({ loading: true, error: null });
         try {
-            const user = await AuthService.signInWithWallet(mnemonic);
+            const user = await AuthService.signInWithWallet(mnemonic, username, email);
             set({ user, isAuthenticated: true, loading: false });
         } catch (error: any) {
             set({ error: error.message, loading: false });

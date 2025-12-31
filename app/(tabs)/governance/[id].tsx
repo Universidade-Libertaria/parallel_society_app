@@ -10,6 +10,7 @@ import { SecureStorage } from '@/core/secure/SecureStorage';
 import { signVote, VoteMessage } from '@/core/wallet/eip712';
 import { useWalletStore } from '@/store/walletStore';
 import { firebaseAuth } from '@/core/config/firebase';
+import { InfoModal } from '@/components/ui/InfoModal';
 
 export default function ProposalDetailsScreen() {
     const { id } = useLocalSearchParams();
@@ -17,6 +18,7 @@ export default function ProposalDetailsScreen() {
     const [proposal, setProposal] = useState<Proposal | null>(null);
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
+    const [showVoteModal, setShowVoteModal] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { walletAddress } = useWalletStore();
 
@@ -42,6 +44,12 @@ export default function ProposalDetailsScreen() {
         if (!proposal || !walletAddress) return;
 
         const powerRaw = proposal.userVotingPowerRaw || '0';
+
+        if (BigInt(powerRaw) === 0n) {
+            setShowVoteModal(true);
+            return;
+        }
+
         const formattedPower = formatTokens(powerRaw);
 
         Alert.alert(
@@ -200,7 +208,7 @@ export default function ProposalDetailsScreen() {
             <View style={styles.authorRow}>
                 <Text style={styles.authorLabel}>Proposed by</Text>
                 <Text style={styles.authorAddress}>
-                    {shortenAddress(proposal.authorAddress)}
+                    {proposal.authorName || shortenAddress(proposal.authorAddress)}
                 </Text>
             </View>
 
@@ -287,7 +295,11 @@ export default function ProposalDetailsScreen() {
             {!isVotingClosed && (
                 <View style={styles.voteActions}>
                     <TouchableOpacity
-                        style={[styles.voteButton, styles.voteButtonFor, voting && styles.voteButtonDisabled]}
+                        style={[
+                            styles.voteButton,
+                            styles.voteButtonFor,
+                            (voting || BigInt(proposal.userVotingPowerRaw || '0') === 0n) && styles.voteButtonDisabled
+                        ]}
                         onPress={() => handleVote('FOR')}
                         disabled={voting}
                     >
@@ -295,7 +307,11 @@ export default function ProposalDetailsScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.voteButton, styles.voteButtonAgainst, voting && styles.voteButtonDisabled]}
+                        style={[
+                            styles.voteButton,
+                            styles.voteButtonAgainst,
+                            (voting || BigInt(proposal.userVotingPowerRaw || '0') === 0n) && styles.voteButtonDisabled
+                        ]}
                         onPress={() => handleVote('AGAINST')}
                         disabled={voting}
                     >
@@ -303,6 +319,14 @@ export default function ProposalDetailsScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
+            <InfoModal
+                visible={showVoteModal}
+                onClose={() => setShowVoteModal(false)}
+                title="Voting Power"
+                message="You don’t have any voting power yet."
+                description="Add some LUT to your wallet to vote on proposals."
+            />
 
             {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
 

@@ -3,12 +3,14 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { useAuthStore } from '@/store/authStore';
+import { useOnboardingStore } from '@/store/onboardingStore';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { ethers } from 'ethers';
 
 export default function SetPinScreen() {
     const router = useRouter();
-    const { setBiometricsEnabled } = useAuthStore();
+    const { login, setBiometricsEnabled } = useAuthStore();
+    const { username, email, reset: resetOnboarding } = useOnboardingStore();
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
     const [useBiometrics, setUseBiometrics] = useState(false);
@@ -34,17 +36,22 @@ export default function SetPinScreen() {
                 const hasHardware = await LocalAuthentication.hasHardwareAsync();
                 if (hasHardware) {
                     await SecureStorage.saveEncryptedKey('use_biometrics', 'true');
-                    // Update store after a small delay or ensure it doesn't unmount this component prematurely
-                    // Actually, updating the store is fine, but we should navigate first or ensure the store update doesn't kill the route.
                     setBiometricsEnabled(true);
                 }
             }
 
-            // Use replace to go home, but ensure we are not in a race condition
+            // Automatic Login after onboarding
+            const mnemonic = await SecureStorage.getEncryptedKey('mnemonic');
+            if (mnemonic) {
+                await login(mnemonic, username, email);
+                resetOnboarding();
+            }
+
+            // Use replace to go home
             router.dismissAll();
             router.replace('/home');
-        } catch (e) {
-            Alert.alert('Error', 'Failed to save security settings.');
+        } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to save security settings.');
             setIsSubmitting(false);
         }
     };

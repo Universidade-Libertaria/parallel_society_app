@@ -17,8 +17,9 @@ export class AuthService {
      * 2. Sign message with local wallet.
      * 3. Verify signature on backend to get Custom Token.
      * 4. Sign in to Firebase with Custom Token.
+     * @param email Optional email metadata
      */
-    static async signInWithWallet(mnemonic: string): Promise<User> {
+    static async signInWithWallet(mnemonic: string, username?: string, email?: string): Promise<User> {
         if (!BACKEND_URL) throw new Error('Auth backend URL not configured');
 
         // Derive wallet from mnemonic
@@ -43,11 +44,10 @@ export class AuthService {
         const message = `Sign in to Parallel Society Governance\nNonce: ${nonce}`;
         const signature = await wallet.signMessage(message);
 
-        // 3. Verify Signature & Get Token
         const verifyRes = await fetch(`${BACKEND_URL}/authVerify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, signature })
+            body: JSON.stringify({ address, signature, username, email })
         });
 
         if (!verifyRes.ok) {

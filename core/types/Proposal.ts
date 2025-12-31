@@ -5,6 +5,7 @@ export interface Proposal {
     category: string;
     description: string;
     authorAddress: string;
+    authorName?: string;
     createdAt: number;
     startTime: number;
     endTime: number;
