@@ -50,9 +50,9 @@ export default function Index() {
         return <Redirect href="/(tabs)/wallet" />;
     }
 
-    // 2. If we have a local wallet but no Firebase session, go to Login (Signature Flow)
+    // 2. If we have a local wallet but no Firebase session, go to Lock screen
     if (hasWallet) {
-        return <Redirect href="/auth/login" />;
+        return <Redirect href="/auth/lock" />;
     }
 
     // 3. If no wallet at all, start onboarding
