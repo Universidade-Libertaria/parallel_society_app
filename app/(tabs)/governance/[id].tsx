@@ -255,7 +255,7 @@ export default function ProposalDetailsScreen() {
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Current Results</Text>
+                <Text style={styles.sectionTitle}>{isVotingClosed ? 'Results' : 'Current Results'}</Text>
 
                 {/* FOR Bar */}
                 <View style={styles.resultRow}>
@@ -296,23 +296,25 @@ export default function ProposalDetailsScreen() {
             </View>
 
             {/* My Vote & Power */}
-            <View style={styles.myVoteContainer}>
-                {proposal.myVote ? (
-                    <>
-                        <Ionicons name="checkmark-circle" size={20} color="#007AFF" />
-                        <Text style={styles.myVoteText}>
-                            You voted <Text style={{ fontWeight: '700' }}>{proposal.myVote.choice}</Text> with {formatTokens(proposal.myVote.weightRaw)}
-                        </Text>
-                    </>
-                ) : (
-                    <>
-                        <Ionicons name="information-circle-outline" size={20} color="#666" />
-                        <Text style={styles.myVoteText}>
-                            Your voting power for this proposal: <Text style={{ fontWeight: '700' }}>{formatTokens(proposal.userVotingPowerRaw || '0')}</Text>
-                        </Text>
-                    </>
-                )}
-            </View>
+            {(!isVotingClosed || proposal.myVote) && (
+                <View style={styles.myVoteContainer}>
+                    {proposal.myVote ? (
+                        <>
+                            <Ionicons name="checkmark-circle" size={20} color="#007AFF" />
+                            <Text style={styles.myVoteText}>
+                                You voted <Text style={{ fontWeight: '700' }}>{proposal.myVote.choice}</Text> with {formatTokens(proposal.myVote.weightRaw)}
+                            </Text>
+                        </>
+                    ) : (
+                        <>
+                            <Ionicons name="information-circle-outline" size={20} color="#666" />
+                            <Text style={styles.myVoteText}>
+                                Your voting power for this proposal: <Text style={{ fontWeight: '700' }}>{formatTokens(proposal.userVotingPowerRaw || '0')}</Text>
+                            </Text>
+                        </>
+                    )}
+                </View>
+            )}
 
             {/* Voting Actions */}
             {!isVotingClosed && (

@@ -48,6 +48,6 @@ export interface Vote {
     updatedAt: number;
 }
 
-export type ProposalCategory = 'Treasury' | 'Infrastructure' | 'Legal' | 'Other';
+export type ProposalCategory = 'Finance' | 'Operations' | 'Governance' | 'Other';
 
-export const PROPOSAL_CATEGORIES: ProposalCategory[] = ['Treasury', 'Infrastructure', 'Legal', 'Other'];
+export const PROPOSAL_CATEGORIES: ProposalCategory[] = ['Finance', 'Operations', 'Governance', 'Other'];
