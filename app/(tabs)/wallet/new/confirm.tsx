@@ -89,31 +89,35 @@ export default function ConfirmPhraseScreen() {
         }
 
         setIsSubmitting(true);
-        try {
-            // Derive and save
-            const wallet = WalletService.importMnemonic(mnemonic);
-            await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
-            await SecureStorage.saveEncryptedKey('mnemonic', mnemonic.join(' '));
 
-            // Save the wallet address to store
-            setWalletAddress(wallet.address);
+        // Use setTimeout to allow the UI to render the loading state before the main thread is blocked by crypto work
+        setTimeout(async () => {
+            try {
+                // Derive and save
+                const wallet = WalletService.importMnemonic(mnemonic);
+                await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+                await SecureStorage.saveEncryptedKey('mnemonic', mnemonic.join(' '));
 
-            // Clear sensitive data from memory
-            clearMnemonic();
-            setWalletCreated(true);
+                // Save the wallet address to store
+                setWalletAddress(wallet.address);
 
-            // Navigate to App Lock setup
-            router.push('/auth/set-pin');
-        } catch (e) {
-            setModalConfig({
-                visible: true,
-                title: 'Error',
-                message: 'Failed to save wallet securely.',
-                variant: 'error',
-                onClose: closePortal
-            });
-            setIsSubmitting(false);
-        }
+                // Clear sensitive data from memory
+                clearMnemonic();
+                setWalletCreated(true);
+
+                // Navigate to App Lock setup
+                router.push('/auth/set-pin');
+            } catch (e) {
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Failed to save wallet securely.',
+                    variant: 'error',
+                    onClose: closePortal
+                });
+                setIsSubmitting(false);
+            }
+        }, 100);
     };
 
     if (indices.length === 0 || options.length === 0) return null;

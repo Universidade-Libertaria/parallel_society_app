@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { WalletService } from '@/core/wallet/WalletService';
@@ -42,27 +42,30 @@ export default function ImportWalletScreen() {
         }
 
         setIsImporting(true);
-        try {
-            const wallet = WalletService.importMnemonic(words);
-            await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
-            await SecureStorage.saveEncryptedKey('mnemonic', mnemonicInput.trim());
 
-            // Save the wallet address to store
-            setWalletAddress(wallet.address);
+        // Use setTimeout to allow the UI to render the loading state before the main thread is blocked by crypto work
+        setTimeout(async () => {
+            try {
+                const wallet = WalletService.importMnemonic(words);
+                await SecureStorage.saveEncryptedKey('private_key', wallet.privateKey);
+                await SecureStorage.saveEncryptedKey('mnemonic', mnemonicInput.trim());
 
-            setWalletCreated(true);
-            router.push('/auth/set-pin');
-        } catch (e) {
-            setModalConfig({
-                visible: true,
-                title: 'Error',
-                message: 'Invalid recovery phrase. Please check and try again.',
-                variant: 'error',
-                onClose: closePortal
-            });
-        } finally {
-            setIsImporting(false);
-        }
+                // Save the wallet address to store
+                setWalletAddress(wallet.address);
+
+                setWalletCreated(true);
+                router.push('/auth/set-pin');
+            } catch (e) {
+                setModalConfig({
+                    visible: true,
+                    title: 'Error',
+                    message: 'Invalid recovery phrase. Please check and try again.',
+                    variant: 'error',
+                    onClose: closePortal
+                });
+                setIsImporting(false);
+            }
+        }, 100);
     };
 
     return (
@@ -92,7 +95,14 @@ export default function ImportWalletScreen() {
                     onPress={handleImport}
                     disabled={isImporting}
                 >
-                    <Text style={styles.buttonText}>{isImporting ? 'Importing...' : 'Import Wallet'}</Text>
+                    {isImporting ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.buttonText}>Importing Secure Wallet...</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.buttonText}>Import Wallet</Text>
+                    )}
                 </TouchableOpacity>
 
                 <InfoModal
@@ -151,5 +161,10 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
