@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useWalletStore } from '@/store/walletStore';
 import { useState, useEffect } from 'react';
@@ -157,7 +157,14 @@ export default function ConfirmPhraseScreen() {
                 onPress={handleConfirm}
                 disabled={isSubmitting}
             >
-                <Text style={styles.buttonText}>{isSubmitting ? 'Verifying...' : 'Confirm'}</Text>
+                {isSubmitting ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.buttonText}>Creating Secure Wallet...</Text>
+                    </View>
+                ) : (
+                    <Text style={styles.buttonText}>Confirm</Text>
+                )}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -263,6 +270,11 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    loadingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     backButton: {
         alignItems: 'center',

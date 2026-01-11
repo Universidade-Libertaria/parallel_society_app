@@ -69,4 +69,22 @@ export class AuthService {
     static subscribeToAuthChanges(callback: (user: User | null) => void) {
         return onAuthStateChanged(firebaseAuth, callback);
     }
+
+    /**
+     * Checks if a username is available and valid.
+     */
+    static async isUsernameAvailable(username: string): Promise<{ available: boolean; error?: string }> {
+        if (!BACKEND_URL) throw new Error('Auth backend URL not configured');
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/authCheckUsername?username=${encodeURIComponent(username)}`);
+            if (!res.ok) {
+                const error = await res.text();
+                return { available: false, error };
+            }
+            return await res.json();
+        } catch (error: any) {
+            return { available: false, error: error.message };
+        }
+    }
 }

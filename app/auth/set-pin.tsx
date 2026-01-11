@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Switch, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { SecureStorage } from '@/core/secure/SecureStorage';
@@ -75,56 +75,65 @@ export default function SetPinScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Set App Lock</Text>
-            <Text style={styles.description}>
-                Create a 6-digit PIN to secure your wallet.
-            </Text>
-
-            <TextInput
-                style={styles.input}
-                placeholder="Enter 6-digit PIN"
-                value={pin}
-                onChangeText={setPin}
-                keyboardType="numeric"
-                maxLength={6}
-                secureTextEntry
-            />
-
-            <TextInput
-                style={styles.input}
-                placeholder="Confirm PIN"
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                keyboardType="numeric"
-                maxLength={6}
-                secureTextEntry
-            />
-
-            <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>Use Biometrics for Quick Access</Text>
-                <Switch
-                    value={useBiometrics}
-                    onValueChange={setUseBiometrics}
-                />
-            </View>
-
-            <TouchableOpacity
-                style={[styles.button, isSubmitting && styles.buttonDisabled]}
-                onPress={handleFinish}
-                disabled={isSubmitting}
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
             >
-                <Text style={styles.buttonText}>{isSubmitting ? 'Setting up...' : 'Finish Wallet Setup'}</Text>
-            </TouchableOpacity>
+                <Text style={styles.title}>Set App Lock</Text>
+                <Text style={styles.description}>
+                    Create a 6-digit PIN to secure your wallet.
+                </Text>
 
-            <InfoModal
-                visible={modalConfig.visible}
-                onClose={() => setModalConfig({ ...modalConfig, visible: false })}
-                title={modalConfig.title}
-                message={modalConfig.message}
-                variant={modalConfig.variant}
-            />
-        </View>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Enter 6-digit PIN"
+                    value={pin}
+                    onChangeText={setPin}
+                    keyboardType="numeric"
+                    maxLength={6}
+                    secureTextEntry
+                />
+
+                <TextInput
+                    style={styles.input}
+                    placeholder="Confirm PIN"
+                    value={confirmPin}
+                    onChangeText={setConfirmPin}
+                    keyboardType="numeric"
+                    maxLength={6}
+                    secureTextEntry
+                />
+
+                <View style={styles.switchContainer}>
+                    <Text style={styles.switchLabel}>Use Biometrics for Quick Access</Text>
+                    <Switch
+                        value={useBiometrics}
+                        onValueChange={setUseBiometrics}
+                    />
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.button, isSubmitting && styles.buttonDisabled]}
+                    onPress={handleFinish}
+                    disabled={isSubmitting}
+                >
+                    <Text style={styles.buttonText}>{isSubmitting ? 'Setting up...' : 'Finish Wallet Setup'}</Text>
+                </TouchableOpacity>
+
+                <InfoModal
+                    visible={modalConfig.visible}
+                    onClose={() => setModalConfig({ ...modalConfig, visible: false })}
+                    title={modalConfig.title}
+                    message={modalConfig.message}
+                    variant={modalConfig.variant}
+                />
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -132,7 +141,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+    },
+    content: {
         padding: 24,
+        flexGrow: 1,
         justifyContent: 'center',
     },
     title: {

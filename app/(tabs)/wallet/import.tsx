@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { WalletService } from '@/core/wallet/WalletService';
@@ -66,39 +66,44 @@ export default function ImportWalletScreen() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Text style={styles.title}>Import Wallet</Text>
-            <Text style={styles.description}>
-                Enter your 12 or 24-word recovery phrase to restore your wallet.
-            </Text>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+                <Text style={styles.title}>Import Wallet</Text>
+                <Text style={styles.description}>
+                    Enter your 12 or 24-word recovery phrase to restore your wallet.
+                </Text>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Enter your recovery phrase here..."
-                multiline
-                numberOfLines={4}
-                value={mnemonicInput}
-                onChangeText={setMnemonicInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-            />
+                <TextInput
+                    style={styles.input}
+                    placeholder="Enter your recovery phrase here..."
+                    multiline
+                    numberOfLines={4}
+                    value={mnemonicInput}
+                    onChangeText={setMnemonicInput}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                />
 
-            <TouchableOpacity
-                style={[styles.button, isImporting && styles.buttonDisabled]}
-                onPress={handleImport}
-                disabled={isImporting}
-            >
-                <Text style={styles.buttonText}>{isImporting ? 'Importing...' : 'Import Wallet'}</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.button, isImporting && styles.buttonDisabled]}
+                    onPress={handleImport}
+                    disabled={isImporting}
+                >
+                    <Text style={styles.buttonText}>{isImporting ? 'Importing...' : 'Import Wallet'}</Text>
+                </TouchableOpacity>
 
-            <InfoModal
-                visible={modalConfig.visible}
-                onClose={modalConfig.onClose}
-                title={modalConfig.title}
-                message={modalConfig.message}
-                variant={modalConfig.variant}
-            />
-        </ScrollView >
+                <InfoModal
+                    visible={modalConfig.visible}
+                    onClose={modalConfig.onClose}
+                    title={modalConfig.title}
+                    message={modalConfig.message}
+                    variant={modalConfig.variant}
+                />
+            </ScrollView >
+        </KeyboardAvoidingView>
     );
 }
 

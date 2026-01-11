@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 export default function Index() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasWallet, setHasWallet] = useState(false);
+    const [hasPin, setHasPin] = useState(false);
     const setWalletCreated = useWalletStore((state) => state.setWalletCreated);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -17,7 +18,13 @@ export default function Index() {
 
     const checkWalletExists = async () => {
         try {
-            // We check for mnemonic as it's required for the signature flow
+            // 1. Check for PIN - this determines if the app is fully set up
+            const pinHash = await SecureStorage.getPinHash();
+            if (pinHash) {
+                setHasPin(true);
+            }
+
+            // 2. Check for wallet
             const mnemonic = await SecureStorage.getEncryptedKey('mnemonic');
             if (mnemonic) {
                 setHasWallet(true);
@@ -31,7 +38,7 @@ export default function Index() {
                 }
             }
         } catch (e) {
-            // No wallet found
+            // No wallet or PIN found
         } finally {
             setIsLoading(false);
         }
@@ -50,12 +57,17 @@ export default function Index() {
         return <Redirect href="/(tabs)/wallet" />;
     }
 
-    // 2. If we have a local wallet but no Firebase session, go to Lock screen
-    if (hasWallet) {
+    // 2. If we have a local wallet AND a PIN, go to Lock screen
+    if (hasWallet && hasPin) {
         return <Redirect href="/auth/lock" />;
     }
 
-    // 3. If no wallet at all, start onboarding
+    // 3. If we have a local wallet but NO PIN, go to Set PIN screen
+    if (hasWallet && !hasPin) {
+        return <Redirect href="/auth/set-pin" />;
+    }
+
+    // 4. If no wallet at all, start onboarding
     return <Redirect href="/(tabs)/wallet/setup" />;
 }
 
