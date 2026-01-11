@@ -7,6 +7,8 @@ import { AuthService } from '@/core/services/AuthService';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 import { SecureStorage } from '@/core/secure/SecureStorage';
+import 'react-native-get-random-values'; // Polyfill for ethers
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function RootLayout() {
     const router = useRouter();
@@ -55,16 +57,18 @@ export default function RootLayout() {
 
     return (
         <SafeAreaProvider>
-            <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="welcome/index" />
-                <Stack.Screen name="onboarding" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="auth" />
-                <Stack.Screen name="legal" />
-                <Stack.Screen name="home" />
-            </Stack>
+            <ErrorBoundary>
+                <StatusBar style="dark" />
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="welcome/index" />
+                    <Stack.Screen name="onboarding" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="legal" />
+                    <Stack.Screen name="home" />
+                </Stack>
+            </ErrorBoundary>
         </SafeAreaProvider>
     );
 }
