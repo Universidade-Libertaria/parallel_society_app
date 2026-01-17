@@ -11,6 +11,10 @@ import { signVote, VoteMessage } from '@/core/wallet/eip712';
 import { useWalletStore } from '@/store/walletStore';
 import { firebaseAuth } from '@/core/config/firebase';
 import { InfoModal } from '@/components/ui/InfoModal';
+import { ProposalUpdatesList } from '@/components/governance/ProposalUpdatesList';
+import { AddProposalUpdateModal } from '@/components/governance/AddProposalUpdateModal';
+import { balanceService } from '@/core/services/BalanceService';
+import { TOKENS } from '@/core/config/tokens';
 
 export default function ProposalDetailsScreen() {
     const { id } = useLocalSearchParams();
@@ -20,6 +24,11 @@ export default function ProposalDetailsScreen() {
     const [voting, setVoting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { walletAddress } = useWalletStore();
+    
+    // Proposal Updates state
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [userLutBalance, setUserLutBalance] = useState<string>('0');
+    const [refreshUpdates, setRefreshUpdates] = useState(0);
 
     // Generic Modal State
     const [modalConfig, setModalConfig] = useState<{
@@ -54,6 +63,24 @@ export default function ProposalDetailsScreen() {
     useEffect(() => {
         loadProposal();
     }, [loadProposal]);
+
+    // Load user LUT balance for permission check
+    useEffect(() => {
+        const loadBalance = async () => {
+            if (!walletAddress) return;
+            try {
+                const lutBalance = await balanceService.fetchTokenBalance(
+                    walletAddress, 
+                    TOKENS.LUT.address!,
+                    'LUT'
+                );
+                setUserLutBalance(lutBalance.raw);
+            } catch (err) {
+                console.error('[ProposalDetails] Failed to load balance:', err);
+            }
+        };
+        loadBalance();
+    }, [walletAddress]);
 
     const handleVote = async (choice: 'FOR' | 'AGAINST') => {
         if (!proposal || !walletAddress) return;
@@ -345,6 +372,42 @@ export default function ProposalDetailsScreen() {
                 </View>
             )}
 
+            {/* Implementation Updates Section - Only for PASSED proposals */}
+            {proposal.status === 'PASSED' && (
+                <View style={styles.section}>
+                    <ProposalUpdatesList 
+                        proposalId={proposal.id} 
+                        onRefresh={refreshUpdates > 0 ? () => {} : undefined}
+                    />
+                </View>
+            )}
+
+            {/* Add Update Button - Floating */}
+            {proposal.status === 'PASSED' && firebaseAuth.currentUser && (
+                <TouchableOpacity
+                    style={[
+                        styles.floatingButton,
+                        BigInt(userLutBalance) < BigInt('2000000000000000000000') && styles.floatingButtonDisabled
+                    ]}
+                    onPress={() => {
+                        if (BigInt(userLutBalance) < BigInt('2000000000000000000000')) {
+                            setModalConfig({
+                                visible: true,
+                                title: 'Insufficient Balance',
+                                message: 'You need at least 2000 LUTs to add implementation updates.',
+                                description: 'Add more LUT tokens to your wallet to participate in proposal updates.',
+                                variant: 'warning'
+                            });
+                        } else {
+                            setShowUpdateModal(true);
+                        }
+                    }}
+                >
+                    <Ionicons name="add" size={24} color="#fff" />
+                    <Text style={styles.floatingButtonText}>Add Status Update</Text>
+                </TouchableOpacity>
+            )}
+
             <InfoModal
                 visible={modalConfig.visible}
                 onClose={closePortal}
@@ -356,6 +419,17 @@ export default function ProposalDetailsScreen() {
             />
 
             {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
+
+            {/* Add Proposal Update Modal */}
+            <AddProposalUpdateModal
+                visible={showUpdateModal}
+                onClose={() => setShowUpdateModal(false)}
+                proposalId={proposal.id}
+                onSuccess={() => {
+                    setRefreshUpdates(prev => prev + 1);
+                    loadProposal(); // Refresh proposal data
+                }}
+            />
 
         </ScrollView>
     );
@@ -441,6 +515,32 @@ const styles = StyleSheet.create({
 
     categoryBadge: { backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
     categoryText: { fontSize: 12, color: '#555', fontWeight: '500' },
+
+    floatingButton: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        backgroundColor: '#007AFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 6,
+    },
+    floatingButtonDisabled: {
+        opacity: 0.6,
+    },
+    floatingButtonText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '600',
+    },
 });
 
 const markdownStyles = {
