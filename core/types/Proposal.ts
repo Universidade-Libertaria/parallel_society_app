@@ -51,3 +51,26 @@ export interface Vote {
 export type ProposalCategory = 'Finance' | 'Operations' | 'Governance' | 'Other';
 
 export const PROPOSAL_CATEGORIES: ProposalCategory[] = ['Finance', 'Operations', 'Governance', 'Other'];
+
+export interface ProposalUpdate {
+    id: string;
+    proposalId: string;
+    authorAddress: string;
+    authorName?: string;
+    status: 'Planning' | 'In Progress' | 'Delayed' | 'Completed' | 'Started';
+    content: string; // Markdown text
+    createdAt: number;
+    attachments?: ProposalUpdateAttachment[];
+}
+
+export interface ProposalUpdateAttachment {
+    id: string;
+    name: string;
+    type: 'document' | 'image' | 'link';
+    url: string;
+    size?: number;
+}
+
+export type ProposalUpdateStatus = 'Planning' | 'In Progress' | 'Delayed' | 'Completed' | 'Started';
+
+export const PROPOSAL_UPDATE_STATUSES: ProposalUpdateStatus[] = ['Planning', 'In Progress', 'Delayed', 'Completed', 'Started'];
