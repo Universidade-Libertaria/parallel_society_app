@@ -75,9 +75,12 @@ export default function SendScreen() {
     };
 
     const handleAmountChange = (text: string) => {
+        // Normalize: replace comma with dot to support all keyboards
+        const normalizedText = text.replace(',', '.');
+
         // Allow decimals
-        if (/^\d*\.?\d*$/.test(text) || text === '') {
-            setAmount(text);
+        if (/^\d*\.?\d*$/.test(normalizedText) || text === '') {
+            setAmount(normalizedText);
             if (errorData?.field === 'amount') setErrorData(null);
         }
     };
