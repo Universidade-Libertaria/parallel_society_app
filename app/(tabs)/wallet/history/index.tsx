@@ -226,7 +226,10 @@ export default function TransactionHistoryScreen() {
                         <TouchableOpacity
                             style={[styles.footerButton, styles.sendButton]}
                             onPress={() => {
-                                // Send placeholder
+                                const token = (activeFilter === 'LUT' || activeFilter === 'RBTC')
+                                    ? activeFilter
+                                    : 'RBTC';
+                                router.push({ pathname: '/wallet/send', params: { token } });
                             }}
                         >
                             <Ionicons name="arrow-up" size={20} color="#fff" />
