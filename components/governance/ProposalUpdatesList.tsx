@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Linking, ScrollView, Image, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { RenderRules } from 'react-native-markdown-display';
 import { ProposalUpdate } from '@/core/types/Proposal';
 import { ProposalUpdateService } from '@/core/services/api/ProposalUpdateService';
 
+import { useWalletStore } from '@/store/walletStore';
+import { Alert } from 'react-native';
+
 interface ProposalUpdatesListProps {
     proposalId: string;
-    onRefresh?: () => void;
+    onEdit?: (update: ProposalUpdate) => void;
 }
 
-export function ProposalUpdatesList({ proposalId, onRefresh }: ProposalUpdatesListProps) {
+export function ProposalUpdatesList({ proposalId, onRefresh, onEdit }: ProposalUpdatesListProps) {
+    const { walletAddress } = useWalletStore();
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [updates, setUpdates] = useState<ProposalUpdate[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -38,6 +43,50 @@ export function ProposalUpdatesList({ proposalId, onRefresh }: ProposalUpdatesLi
             loadUpdates();
         }
     }, [onRefresh]);
+
+    const handleOptions = (update: ProposalUpdate) => {
+        Alert.alert(
+            'Manage Update',
+            'Choose an action',
+            [
+                {
+                    text: 'Edit',
+                    onPress: () => onEdit?.(update)
+                },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        Alert.alert(
+                            'Confirm Delete',
+                            'Are you sure you want to delete this update?',
+                            [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        setDeletingId(update.id);
+                                        try {
+                                            await ProposalUpdateService.deleteProposalUpdate(update.id);
+                                            Alert.alert('Success', 'Update deleted successfully');
+                                            onRefresh?.();
+                                            loadUpdates();
+                                        } catch (error: any) {
+                                            Alert.alert('Error', error.message || 'Failed to delete update');
+                                        } finally {
+                                            setDeletingId(null);
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }
+                },
+                { text: 'Cancel', style: 'cancel' }
+            ]
+        );
+    };
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -98,22 +147,22 @@ export function ProposalUpdatesList({ proposalId, onRefresh }: ProposalUpdatesLi
     return (
         <View style={styles.container}>
             <Text style={styles.sectionTitle}>Implementation Updates</Text>
-            
+
             <View style={styles.timeline}>
                 {updates.map((update, index) => (
                     <View key={update.id} style={styles.updateCard}>
                         {/* Timeline connector */}
                         <View style={styles.timelineConnector}>
-                            <View 
+                            <View
                                 style={[
-                                    styles.timelineDot, 
+                                    styles.timelineDot,
                                     { backgroundColor: getStatusColor(update.status) }
-                                ]} 
+                                ]}
                             >
-                                <Ionicons 
-                                    name={getStatusIcon(update.status) as any} 
-                                    size={16} 
-                                    color="#fff" 
+                                <Ionicons
+                                    name={getStatusIcon(update.status) as any}
+                                    size={16}
+                                    color="#fff"
                                 />
                             </View>
                             {index < updates.length - 1 && <View style={styles.timelineLine} />}
@@ -123,35 +172,46 @@ export function ProposalUpdatesList({ proposalId, onRefresh }: ProposalUpdatesLi
                         <View style={styles.updateContent}>
                             <View style={styles.updateHeader}>
                                 <View style={styles.headerLeft}>
-                                    <Ionicons 
-                                        name="calendar-outline" 
-                                        size={14} 
-                                        color="#666" 
-                                    />
-                                    <Text style={styles.dateText}>{formatDate(update.createdAt)}</Text>
-                                </View>
-                                <View 
-                                    style={[
-                                        styles.statusBadge, 
-                                        { backgroundColor: getStatusColor(update.status) + '20' }
-                                    ]}
-                                >
-                                    <Text 
+                                    <View
                                         style={[
-                                            styles.statusText, 
-                                            { color: getStatusColor(update.status) }
+                                            styles.statusBadge,
+                                            { backgroundColor: getStatusColor(update.status) + '20' }
                                         ]}
                                     >
-                                        {update.status}
-                                    </Text>
+                                        <Text
+                                            style={[
+                                                styles.statusText,
+                                                { color: getStatusColor(update.status) }
+                                            ]}
+                                        >
+                                            {update.status}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.dateText}>• {formatDate(update.createdAt)}</Text>
                                 </View>
+
+                                {walletAddress && update.authorAddress && walletAddress.toLowerCase() === update.authorAddress.toLowerCase() && (
+                                    <TouchableOpacity
+                                        onPress={() => handleOptions(update)}
+                                        disabled={!!deletingId}
+                                        style={styles.moreButton}
+                                    >
+                                        {deletingId === update.id ? (
+                                            <ActivityIndicator size="small" color="#666" />
+                                        ) : (
+                                            <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
+                                        )}
+                                    </TouchableOpacity>
+                                )}
                             </View>
 
                             {/* Update body */}
                             <View style={styles.updateBody}>
-                                <Markdown style={markdownStyles}>
-                                    {update.content}
-                                </Markdown>
+                                <View style={styles.updateBody}>
+                                    <Markdown style={markdownStyles} rules={markdownRules}>
+                                        {update.content}
+                                    </Markdown>
+                                </View>
                             </View>
 
                             {/* Attachments */}
@@ -164,14 +224,14 @@ export function ProposalUpdatesList({ proposalId, onRefresh }: ProposalUpdatesLi
                                             style={styles.attachmentItem}
                                             onPress={() => Linking.openURL(attachment.url)}
                                         >
-                                            <Ionicons 
+                                            <Ionicons
                                                 name={
                                                     attachment.type === 'document' ? 'document-text' :
-                                                    attachment.type === 'image' ? 'image' :
-                                                    'link'
-                                                } 
-                                                size={16} 
-                                                color="#007AFF" 
+                                                        attachment.type === 'image' ? 'image' :
+                                                            'link'
+                                                }
+                                                size={16}
+                                                color="#007AFF"
                                             />
                                             <Text style={styles.attachmentName}>{attachment.name}</Text>
                                         </TouchableOpacity>
@@ -303,6 +363,17 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
     },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginLeft: 8,
+    },
+    moreButton: {
+        padding: 4,
+    },
+    actionButton: {
+        padding: 4,
+    },
     updateBody: {
         marginBottom: 12,
     },
@@ -341,10 +412,10 @@ const styles = StyleSheet.create({
 });
 
 const markdownStyles = {
-    body: { 
-        fontSize: 14, 
-        color: '#333', 
-        lineHeight: 20 
+    body: {
+        fontSize: 14,
+        color: '#333',
+        lineHeight: 20
     },
     bullet_list: {
         marginVertical: 4,
@@ -352,4 +423,25 @@ const markdownStyles = {
     list_item: {
         marginVertical: 2,
     },
+};
+
+const markdownRules: RenderRules = {
+    image: (node, children, parent, styles) => {
+        const { src, alt } = node.attributes;
+        return (
+            <Pressable key={node.key} onPress={() => Linking.openURL(src)}>
+                <Image
+                    source={{ uri: src }}
+                    style={{
+                        width: '100%',
+                        height: 200,
+                        borderRadius: 8,
+                        resizeMode: 'contain',
+                        marginVertical: 10
+                    }}
+                    accessibilityLabel={alt}
+                />
+            </Pressable>
+        );
+    }
 };

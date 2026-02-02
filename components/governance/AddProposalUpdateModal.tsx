@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -12,107 +12,33 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ProposalUpdateStatus, ProposalUpdateAttachment, PROPOSAL_UPDATE_STATUSES } from '@/core/types/Proposal';
+import { ProposalUpdateStatus, PROPOSAL_UPDATE_STATUSES, ProposalUpdate } from '@/core/types/Proposal';
 import { ProposalUpdateService } from '@/core/services/api/ProposalUpdateService';
-import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 
 interface AddProposalUpdateModalProps {
     visible: boolean;
     onClose: () => void;
     proposalId: string;
     onSuccess?: () => void;
+    initialData?: ProposalUpdate | null;
 }
 
-export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess }: AddProposalUpdateModalProps) {
+export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess, initialData }: AddProposalUpdateModalProps) {
     const [selectedStatus, setSelectedStatus] = useState<ProposalUpdateStatus>('In Progress');
     const [content, setContent] = useState('');
-    const [attachments, setAttachments] = useState<ProposalUpdateAttachment[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const handlePickDocument = async () => {
-        try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: '*/*',
-                copyToCacheDirectory: true,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                const file = result.assets[0];
-                const newAttachment: ProposalUpdateAttachment = {
-                    id: Date.now().toString(),
-                    name: file.name,
-                    type: 'document',
-                    url: file.uri,
-                    size: file.size,
-                };
-                setAttachments([...attachments, newAttachment]);
+    useEffect(() => {
+        if (visible) {
+            if (initialData) {
+                setSelectedStatus(initialData.status as ProposalUpdateStatus);
+                setContent(initialData.content);
+            } else {
+                setSelectedStatus('In Progress');
+                setContent('');
             }
-        } catch (error) {
-            console.error('Error picking document:', error);
-            Alert.alert('Error', 'Failed to pick document');
         }
-    };
-
-    const handlePickImage = async () => {
-        try {
-            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            
-            if (!permissionResult.granted) {
-                Alert.alert('Permission Required', 'Please grant permission to access your photo library.');
-                return;
-            }
-
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                quality: 0.8,
-                allowsEditing: true,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                const image = result.assets[0];
-                const newAttachment: ProposalUpdateAttachment = {
-                    id: Date.now().toString(),
-                    name: `image_${Date.now()}.jpg`,
-                    type: 'image',
-                    url: image.uri,
-                };
-                setAttachments([...attachments, newAttachment]);
-            }
-        } catch (error) {
-            console.error('Error picking image:', error);
-            Alert.alert('Error', 'Failed to pick image');
-        }
-    };
-
-    const handleAddLink = () => {
-        Alert.prompt(
-            'Add Link',
-            'Enter the URL and display name',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Add',
-                    onPress: (url?: string) => {
-                        if (url && url.trim()) {
-                            const newAttachment: ProposalUpdateAttachment = {
-                                id: Date.now().toString(),
-                                name: url,
-                                type: 'link',
-                                url: url.trim(),
-                            };
-                            setAttachments([...attachments, newAttachment]);
-                        }
-                    },
-                },
-            ],
-            'plain-text'
-        );
-    };
-
-    const removeAttachment = (id: string) => {
-        setAttachments(attachments.filter(a => a.id !== id));
-    };
+    }, [visible, initialData]);
 
     const insertFormatting = (format: 'bold' | 'italic' | 'list' | 'link') => {
         switch (format) {
@@ -131,6 +57,7 @@ export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess
         }
     };
 
+
     const handleSubmit = async () => {
         if (!content.trim()) {
             Alert.alert('Error', 'Please enter update details');
@@ -139,24 +66,29 @@ export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess
 
         setLoading(true);
         try {
-            await ProposalUpdateService.addProposalUpdate({
-                proposalId,
-                status: selectedStatus,
-                content: content.trim(),
-                attachments,
-            });
+            if (initialData) {
+                await ProposalUpdateService.editProposalUpdate(initialData.id, {
+                    proposalId,
+                    status: selectedStatus,
+                    content: content.trim(),
+                });
+                Alert.alert('Success', 'Update edited successfully');
+            } else {
+                await ProposalUpdateService.addProposalUpdate({
+                    proposalId,
+                    status: selectedStatus,
+                    content: content.trim(),
+                });
+                Alert.alert('Success', 'Update posted successfully');
+            }
 
-            // Reset form
             setContent('');
             setSelectedStatus('In Progress');
-            setAttachments([]);
-
-            Alert.alert('Success', 'Update posted successfully');
             onSuccess?.();
             onClose();
         } catch (error: any) {
-            console.error('[AddProposalUpdateModal] Error posting update:', error);
-            Alert.alert('Error', error.message || 'Failed to post update');
+            console.error('[AddProposalUpdateModal] Error saving update:', error);
+            Alert.alert('Error', error.message || 'Failed to save update');
         } finally {
             setLoading(false);
         }
@@ -184,7 +116,7 @@ export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess
                 <View style={styles.modalContainer}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Add Status Update</Text>
+                        <Text style={styles.title}>{initialData ? 'Edit Status Update' : 'Add Status Update'}</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <Ionicons name="close" size={24} color="#333" />
                         </TouchableOpacity>
@@ -256,49 +188,6 @@ export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess
                             </View>
                         </View>
 
-                        {/* Attachments */}
-                        <Text style={styles.label}>Attachments</Text>
-                        <TouchableOpacity
-                            style={styles.attachmentPicker}
-                            onPress={() => {
-                                Alert.alert(
-                                    'Add Attachment',
-                                    'Choose attachment type',
-                                    [
-                                        { text: 'Document', onPress: handlePickDocument },
-                                        { text: 'Image', onPress: handlePickImage },
-                                        { text: 'Link', onPress: handleAddLink },
-                                        { text: 'Cancel', style: 'cancel' },
-                                    ]
-                                );
-                            }}
-                        >
-                            <Ionicons name="attach" size={24} color="#999" />
-                            <Text style={styles.attachmentPickerText}>
-                                Add attachments (documents, images, links)
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* Attachment list */}
-                        {attachments.map((attachment) => (
-                            <View key={attachment.id} style={styles.attachmentItem}>
-                                <Ionicons
-                                    name={
-                                        attachment.type === 'document' ? 'document-text' :
-                                        attachment.type === 'image' ? 'image' :
-                                        'link'
-                                    }
-                                    size={20}
-                                    color="#007AFF"
-                                />
-                                <Text style={styles.attachmentName} numberOfLines={1}>
-                                    {attachment.name}
-                                </Text>
-                                <TouchableOpacity onPress={() => removeAttachment(attachment.id)}>
-                                    <Ionicons name="close-circle" size={20} color="#dc3545" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
                     </ScrollView>
 
                     {/* Submit button */}
@@ -310,7 +199,7 @@ export function AddProposalUpdateModal({ visible, onClose, proposalId, onSuccess
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.submitButtonText}>Post Update</Text>
+                            <Text style={styles.submitButtonText}>{initialData ? 'Save Changes' : 'Post Update'}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -417,36 +306,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#666',
-    },
-    attachmentPicker: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        padding: 16,
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        borderColor: '#ddd',
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    attachmentPickerText: {
-        flex: 1,
-        fontSize: 14,
-        color: '#999',
-    },
-    attachmentItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        padding: 12,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 8,
-        marginBottom: 8,
-    },
-    attachmentName: {
-        flex: 1,
-        fontSize: 13,
-        color: '#333',
     },
     submitButton: {
         backgroundColor: '#007AFF',
