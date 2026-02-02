@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ProposalService } from '@/core/types/../services/api/ProposalService';
-import { Proposal } from '@/core/types/Proposal';
+import { Proposal, ProposalUpdate } from '@/core/types/Proposal';
 import { Ionicons } from '@expo/vector-icons';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { RenderRules } from 'react-native-markdown-display';
+import { Image, Pressable } from 'react-native';
 import { ethers } from 'ethers';
 import { SecureStorage } from '@/core/secure/SecureStorage';
 import { signVote, VoteMessage } from '@/core/wallet/eip712';
@@ -24,9 +25,10 @@ export default function ProposalDetailsScreen() {
     const [voting, setVoting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { walletAddress } = useWalletStore();
-    
+
     // Proposal Updates state
     const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [editingUpdate, setEditingUpdate] = useState<ProposalUpdate | null>(null);
     const [userLutBalance, setUserLutBalance] = useState<string>('0');
     const [refreshUpdates, setRefreshUpdates] = useState(0);
 
@@ -70,7 +72,7 @@ export default function ProposalDetailsScreen() {
             if (!walletAddress) return;
             try {
                 const lutBalance = await balanceService.fetchTokenBalance(
-                    walletAddress, 
+                    walletAddress,
                     TOKENS.LUT.address!,
                     'LUT'
                 );
@@ -275,7 +277,7 @@ export default function ProposalDetailsScreen() {
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Description</Text>
                 <View style={styles.markdownBox}>
-                    <Markdown style={markdownStyles}>
+                    <Markdown style={markdownStyles} rules={markdownRules}>
                         {proposal.description}
                     </Markdown>
                 </View>
@@ -375,15 +377,19 @@ export default function ProposalDetailsScreen() {
             {/* Implementation Updates Section - Only for PASSED proposals */}
             {proposal.status === 'PASSED' && (
                 <View style={styles.section}>
-                    <ProposalUpdatesList 
-                        proposalId={proposal.id} 
-                        onRefresh={refreshUpdates > 0 ? () => {} : undefined}
+                    <ProposalUpdatesList
+                        proposalId={proposal.id}
+                        onRefresh={refreshUpdates > 0 ? () => { } : undefined}
+                        onEdit={(update) => {
+                            setEditingUpdate(update);
+                            setShowUpdateModal(true);
+                        }}
                     />
                 </View>
             )}
 
             {/* Add Update Button - Floating */}
-            {proposal.status === 'PASSED' && firebaseAuth.currentUser && (
+            {proposal.status === 'PASSED' && firebaseAuth.currentUser && walletAddress && proposal.authorAddress && walletAddress.toLowerCase() === proposal.authorAddress.toLowerCase() && (
                 <TouchableOpacity
                     style={[
                         styles.floatingButton,
@@ -399,6 +405,7 @@ export default function ProposalDetailsScreen() {
                                 variant: 'warning'
                             });
                         } else {
+                            setEditingUpdate(null);
                             setShowUpdateModal(true);
                         }
                     }}
@@ -406,7 +413,8 @@ export default function ProposalDetailsScreen() {
                     <Ionicons name="add" size={24} color="#fff" />
                     <Text style={styles.floatingButtonText}>Add Status Update</Text>
                 </TouchableOpacity>
-            )}
+            )
+            }
 
             <InfoModal
                 visible={modalConfig.visible}
@@ -423,15 +431,19 @@ export default function ProposalDetailsScreen() {
             {/* Add Proposal Update Modal */}
             <AddProposalUpdateModal
                 visible={showUpdateModal}
-                onClose={() => setShowUpdateModal(false)}
+                onClose={() => {
+                    setShowUpdateModal(false);
+                    setEditingUpdate(null);
+                }}
                 proposalId={proposal.id}
+                initialData={editingUpdate}
                 onSuccess={() => {
                     setRefreshUpdates(prev => prev + 1);
                     loadProposal(); // Refresh proposal data
                 }}
             />
 
-        </ScrollView>
+        </ScrollView >
     );
 }
 
@@ -545,4 +557,25 @@ const styles = StyleSheet.create({
 
 const markdownStyles = {
     body: { fontSize: 15, color: '#333', lineHeight: 24 },
+};
+
+const markdownRules = {
+    image: (node: any, children: any, parent: any, styles: any) => {
+        const { src, alt } = node.attributes;
+        return (
+            <Pressable key={node.key} onPress={() => Linking.openURL(src)}>
+                <Image
+                    source={{ uri: src }}
+                    style={{
+                        width: '100%',
+                        height: 200,
+                        borderRadius: 8,
+                        resizeMode: 'contain',
+                        marginVertical: 10
+                    }}
+                    accessibilityLabel={alt}
+                />
+            </Pressable>
+        );
+    }
 };
