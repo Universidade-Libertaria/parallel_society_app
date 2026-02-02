@@ -1,0 +1,5 @@
+﻿app/(tabs)/wallet/send/index.tsx(9,26): error TS2307: Cannot find module 'lodash' or its corresponding type declarations.
+core/config/firebase.ts(2,26): error TS2305: Module '"firebase/auth"' has no exported member 'getReactNativePersistence'.
+core/services/GovernanceService.ts(43,17): error TS2353: Object literal may only specify known properties, and 'endDate' does not exist in type 'Proposal'.
+core/services/RpcHistoryService.ts(142,47): error TS2339: Property 'getOfficialRpcUrl' does not exist on type '{ MAINNET_CHAIN_ID: number; TESTNET_CHAIN_ID: number; RPC_URL: any; MAINNET_RPC_URL: string; TESTNET_RPC_URL: string; }'.
+store/onboardingStore.ts(26,38): error TS2322: Type 'string' is not assignable to type '"English"'.

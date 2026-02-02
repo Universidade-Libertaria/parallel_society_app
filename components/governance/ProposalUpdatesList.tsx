@@ -10,6 +10,7 @@ import { Alert } from 'react-native';
 
 interface ProposalUpdatesListProps {
     proposalId: string;
+    onRefresh?: () => void;
     onEdit?: (update: ProposalUpdate) => void;
 }
 
@@ -205,13 +206,10 @@ export function ProposalUpdatesList({ proposalId, onRefresh, onEdit }: ProposalU
                                 )}
                             </View>
 
-                            {/* Update body */}
                             <View style={styles.updateBody}>
-                                <View style={styles.updateBody}>
-                                    <Markdown style={markdownStyles} rules={markdownRules}>
-                                        {update.content}
-                                    </Markdown>
-                                </View>
+                                <Markdown style={markdownStyles} rules={markdownRules}>
+                                    {update.content}
+                                </Markdown>
                             </View>
 
                             {/* Attachments */}
@@ -426,7 +424,7 @@ const markdownStyles = {
 };
 
 const markdownRules: RenderRules = {
-    image: (node, children, parent, styles) => {
+    image: (node, children, parent, styles, inheritedStyles) => {
         const { src, alt } = node.attributes;
         return (
             <Pressable key={node.key} onPress={() => Linking.openURL(src)}>

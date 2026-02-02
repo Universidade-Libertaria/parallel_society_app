@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ProposalService } from '@/core/types/../services/api/ProposalService';
+import { ProposalService } from '@/core/services/api/ProposalService';
 import { Proposal, ProposalUpdate } from '@/core/types/Proposal';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown, { RenderRules } from 'react-native-markdown-display';
@@ -140,8 +140,7 @@ export default function ProposalDetailsScreen() {
                                 title: 'Success',
                                 message: 'Vote cast successfully',
                                 variant: 'success',
-                                onClose: closePortal
-                            } as any);
+                            });
                             loadProposal();
                         } catch (err: any) {
                             setModalConfig({
@@ -149,8 +148,7 @@ export default function ProposalDetailsScreen() {
                                 title: 'Error',
                                 message: err.message || 'Failed to cast vote',
                                 variant: 'error',
-                                onClose: closePortal
-                            } as any);
+                            });
                         } finally {
                             setVoting(false);
                         }
@@ -379,7 +377,10 @@ export default function ProposalDetailsScreen() {
                 <View style={styles.section}>
                     <ProposalUpdatesList
                         proposalId={proposal.id}
-                        onRefresh={refreshUpdates > 0 ? () => { } : undefined}
+                        onRefresh={() => {
+                            setRefreshUpdates(prev => prev + 1);
+                            loadProposal();
+                        }}
                         onEdit={(update) => {
                             setEditingUpdate(update);
                             setShowUpdateModal(true);
@@ -559,8 +560,8 @@ const markdownStyles = {
     body: { fontSize: 15, color: '#333', lineHeight: 24 },
 };
 
-const markdownRules = {
-    image: (node: any, children: any, parent: any, styles: any) => {
+const markdownRules: RenderRules = {
+    image: (node, children, parent, styles, inheritedStyles) => {
         const { src, alt } = node.attributes;
         return (
             <Pressable key={node.key} onPress={() => Linking.openURL(src)}>
